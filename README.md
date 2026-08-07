@@ -19,3 +19,14 @@ The project demonstrates how Apache Kafka can be used as an event store to recon
 ## Project status
 
 The project is currently under development.
+
+
+## Repository structure
+
+- `analytics`: analytical queries and generated results.
+- `docs`: theoretical and architectural project documentation.
+- `infra`: Docker, Kafka and PostgreSQL infrastructure.
+- `java-state-reconstructor`: Java service responsible for rebuilding order state.
+- `python-generator`: distributed synthetic event generators.
+- `samples`: example events and simulation scenarios.
+- `web-ui`: web interface used to control and demonstrate the system.
