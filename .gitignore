@@ -1,0 +1,41 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Java and Maven
+target/
+*.class
+
+# Node.js
+node_modules/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Operating systems
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Generated analytics
+analytics/exports/*
+!analytics/exports/.gitkeep
+
+# Local Docker data
+docker-data/
