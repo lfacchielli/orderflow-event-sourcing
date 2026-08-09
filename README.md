@@ -1,6 +1,6 @@
 # OrderFlow Event Sourcing
 
-Educational project developed for the Distributed Edge Programming course.
+University project developed for the Distributed Edge Programming course.
 
 The project demonstrates how Apache Kafka can be used as an event store to reconstruct the current and historical state of logistics orders from immutable events.
 
