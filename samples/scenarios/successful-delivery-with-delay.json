@@ -1,0 +1,185 @@
+{
+  "scenarioId": "successful-delivery-with-delay",
+  "description": "Successful order delivery after passing through multiple distributed logistics nodes.",
+  "aggregateId": "ORD-2001",
+  "expectedFinalState": {
+    "orderId": "ORD-2001",
+    "status": "DELIVERED",
+    "version": 10,
+    "customerId": "CUS-501",
+    "currency": "EUR",
+    "totalAmount": 55.00,
+    "currentHub": "HUB-FIRENZE",
+    "visitedHubs": [
+      "HUB-MODENA",
+      "HUB-BOLOGNA",
+      "HUB-FIRENZE"
+    ],
+    "totalDelayMinutes": 35,
+    "hasDelay": true,
+    "createdAt": "2026-08-29T10:00:00Z",
+    "deliveredAt": "2026-08-29T16:00:00Z"
+  },
+  "events": [
+    {
+      "eventId": "7e429750-7f5d-4a55-9ce4-5609b32b9a67",
+      "eventType": "ORDER_CREATED",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 1,
+      "occurredAt": "2026-08-29T10:00:00Z",
+      "producerId": "ecommerce-node-01",
+      "producerType": "ECOMMERCE",
+      "correlationId": "CORR-2001",
+      "payload": {
+        "customerId": "CUS-501",
+        "currency": "EUR",
+        "items": [
+          {
+            "productId": "PRD-100",
+            "productName": "Wireless Sensor",
+            "quantity": 2,
+            "unitPrice": 20.00
+          },
+          {
+            "productId": "PRD-205",
+            "productName": "Edge Gateway Adapter",
+            "quantity": 1,
+            "unitPrice": 15.00
+          }
+        ],
+        "totalAmount": 55.00,
+        "destination": {
+          "city": "Firenze",
+          "country": "IT"
+        }
+      }
+    },
+    {
+      "eventId": "c9e05cd1-039f-4ccb-99af-b89909d48cf0",
+      "eventType": "ORDER_CONFIRMED",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 2,
+      "occurredAt": "2026-08-29T10:02:00Z",
+      "producerId": "ecommerce-node-01",
+      "producerType": "ECOMMERCE",
+      "correlationId": "CORR-2001",
+      "payload": {}
+    },
+    {
+      "eventId": "70f3383e-a586-40cc-b8ac-43b6757ca015",
+      "eventType": "PAYMENT_COMPLETED",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 3,
+      "occurredAt": "2026-08-29T10:04:00Z",
+      "producerId": "payment-node-01",
+      "producerType": "PAYMENT",
+      "correlationId": "CORR-2001",
+      "payload": {
+        "paymentId": "PAY-2001",
+        "amount": 55.00,
+        "currency": "EUR",
+        "method": "CARD"
+      }
+    },
+    {
+      "eventId": "02c39cc1-1116-4327-b1b4-bd612c76866f",
+      "eventType": "INVENTORY_RESERVED",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 4,
+      "occurredAt": "2026-08-29T10:08:00Z",
+      "producerId": "warehouse-modena-01",
+      "producerType": "WAREHOUSE",
+      "correlationId": "CORR-2001",
+      "payload": {
+        "warehouseId": "WAREHOUSE-MODENA",
+        "reservationId": "RES-2001"
+      }
+    },
+    {
+      "eventId": "1daa071e-c730-43ef-b3d8-d79db83e53ce",
+      "eventType": "ORDER_PACKED",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 5,
+      "occurredAt": "2026-08-29T10:20:00Z",
+      "producerId": "warehouse-modena-01",
+      "producerType": "WAREHOUSE",
+      "correlationId": "CORR-2001",
+      "payload": {
+        "packageId": "PKG-2001",
+        "weightKg": 2.4
+      }
+    },
+    {
+      "eventId": "8706a280-5390-46ce-a72c-71f60996b8df",
+      "eventType": "SHIPMENT_STARTED",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 6,
+      "occurredAt": "2026-08-29T11:00:00Z",
+      "producerId": "warehouse-modena-01",
+      "producerType": "WAREHOUSE",
+      "correlationId": "CORR-2001",
+      "payload": {
+        "shipmentId": "SHP-2001",
+        "hubId": "HUB-MODENA"
+      }
+    },
+    {
+      "eventId": "e03656dc-3798-46a2-94d4-986a61974bde",
+      "eventType": "HUB_REACHED",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 7,
+      "occurredAt": "2026-08-29T12:30:00Z",
+      "producerId": "hub-bologna-01",
+      "producerType": "LOGISTICS_HUB",
+      "correlationId": "CORR-2001",
+      "payload": {
+        "hubId": "HUB-BOLOGNA",
+        "city": "Bologna"
+      }
+    },
+    {
+      "eventId": "12e3cef2-62c6-4c32-987e-794f044402b4",
+      "eventType": "DELIVERY_DELAYED",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 8,
+      "occurredAt": "2026-08-29T13:00:00Z",
+      "producerId": "hub-bologna-01",
+      "producerType": "LOGISTICS_HUB",
+      "correlationId": "CORR-2001",
+      "payload": {
+        "hubId": "HUB-BOLOGNA",
+        "delayMinutes": 35,
+        "reason": "TRAFFIC"
+      }
+    },
+    {
+      "eventId": "3c7958a8-1417-4e54-b00f-378681a4deec",
+      "eventType": "OUT_FOR_DELIVERY",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 9,
+      "occurredAt": "2026-08-29T15:15:00Z",
+      "producerId": "delivery-firenze-01",
+      "producerType": "DELIVERY",
+      "correlationId": "CORR-2001",
+      "payload": {
+        "hubId": "HUB-FIRENZE",
+        "city": "Firenze",
+        "courierId": "COURIER-17"
+      }
+    },
+    {
+      "eventId": "60231b5c-c90e-43ae-a47d-d182245be6ec",
+      "eventType": "ORDER_DELIVERED",
+      "aggregateId": "ORD-2001",
+      "aggregateVersion": 10,
+      "occurredAt": "2026-08-29T16:00:00Z",
+      "producerId": "delivery-firenze-01",
+      "producerType": "DELIVERY",
+      "correlationId": "CORR-2001",
+      "payload": {
+        "hubId": "HUB-FIRENZE",
+        "city": "Firenze"
+      }
+    }
+  ]
+}

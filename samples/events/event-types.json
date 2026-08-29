@@ -1,0 +1,111 @@
+{
+  "eventTypes": {
+    "ORDER_CREATED": {
+      "producerType": "ECOMMERCE",
+      "requiredPayloadFields": [
+        "customerId",
+        "currency",
+        "items",
+        "totalAmount",
+        "destination"
+      ],
+      "resultingStatus": "CREATED"
+    },
+    "ORDER_CONFIRMED": {
+      "producerType": "ECOMMERCE",
+      "requiredPayloadFields": [],
+      "resultingStatus": "CONFIRMED"
+    },
+    "PAYMENT_COMPLETED": {
+      "producerType": "PAYMENT",
+      "requiredPayloadFields": [
+        "paymentId",
+        "amount",
+        "currency",
+        "method"
+      ],
+      "resultingStatus": "PAID"
+    },
+    "PAYMENT_FAILED": {
+      "producerType": "PAYMENT",
+      "requiredPayloadFields": [
+        "paymentId",
+        "reason"
+      ],
+      "resultingStatus": "CONFIRMED"
+    },
+    "INVENTORY_RESERVED": {
+      "producerType": "WAREHOUSE",
+      "requiredPayloadFields": [
+        "warehouseId",
+        "reservationId"
+      ],
+      "resultingStatus": "INVENTORY_RESERVED"
+    },
+    "ORDER_PACKED": {
+      "producerType": "WAREHOUSE",
+      "requiredPayloadFields": [
+        "packageId",
+        "weightKg"
+      ],
+      "resultingStatus": "PACKED"
+    },
+    "SHIPMENT_STARTED": {
+      "producerType": "WAREHOUSE",
+      "requiredPayloadFields": [
+        "shipmentId",
+        "hubId"
+      ],
+      "resultingStatus": "IN_TRANSIT"
+    },
+    "HUB_REACHED": {
+      "producerType": "LOGISTICS_HUB",
+      "requiredPayloadFields": [
+        "hubId",
+        "city"
+      ],
+      "resultingStatus": "IN_TRANSIT"
+    },
+    "DELIVERY_DELAYED": {
+      "producerType": "LOGISTICS_HUB",
+      "requiredPayloadFields": [
+        "hubId",
+        "delayMinutes",
+        "reason"
+      ],
+      "resultingStatus": "UNCHANGED"
+    },
+    "OUT_FOR_DELIVERY": {
+      "producerType": "DELIVERY",
+      "requiredPayloadFields": [
+        "hubId",
+        "city",
+        "courierId"
+      ],
+      "resultingStatus": "OUT_FOR_DELIVERY"
+    },
+    "ORDER_DELIVERED": {
+      "producerType": "DELIVERY",
+      "requiredPayloadFields": [
+        "hubId",
+        "city"
+      ],
+      "resultingStatus": "DELIVERED"
+    },
+    "ORDER_CANCELLED": {
+      "producerType": "ECOMMERCE",
+      "requiredPayloadFields": [
+        "reason"
+      ],
+      "resultingStatus": "CANCELLED"
+    },
+    "DELIVERY_FAILED": {
+      "producerType": "DELIVERY",
+      "requiredPayloadFields": [
+        "reason",
+        "attemptNumber"
+      ],
+      "resultingStatus": "DELIVERY_FAILED"
+    }
+  }
+}
