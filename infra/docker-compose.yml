@@ -38,6 +38,25 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+
+
+  kafka-init:
+    image: apache/kafka:4.1.2
+    container_name: orderflow-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      BOOTSTRAP_SERVER: kafka:29092
+    volumes:
+      - ./kafka/create-topics.sh:/scripts/create-topics.sh:ro
+    command: ["sh", "/scripts/create-topics.sh"]
+    networks:
+      - orderflow-network
+    restart: "no"
+
+
+
   postgres:
     image: postgres:17.10-alpine
     container_name: orderflow-postgres
