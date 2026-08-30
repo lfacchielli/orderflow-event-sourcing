@@ -1,2 +1,1 @@
-# No external dependencies are required for local event generation.
-# Kafka dependencies will be added in the producer integration iteration.
+confluent-kafka==2.15.0
