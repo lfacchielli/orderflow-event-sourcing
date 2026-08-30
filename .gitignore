@@ -10,6 +10,10 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# Python generator output
+python-generator/output/*
+!python-generator/output/.gitkeep
+
 # Java and Maven
 target/
 *.class
