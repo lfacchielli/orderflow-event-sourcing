@@ -1,0 +1,17 @@
+package it.orderflow.reconstructor.domain;
+
+public enum EventType {
+    ORDER_CREATED,
+    ORDER_CONFIRMED,
+    PAYMENT_COMPLETED,
+    PAYMENT_FAILED,
+    INVENTORY_RESERVED,
+    ORDER_PACKED,
+    SHIPMENT_STARTED,
+    HUB_REACHED,
+    DELIVERY_DELAYED,
+    OUT_FOR_DELIVERY,
+    ORDER_DELIVERED,
+    ORDER_CANCELLED,
+    DELIVERY_FAILED
+}

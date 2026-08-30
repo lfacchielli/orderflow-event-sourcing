@@ -1,0 +1,33 @@
+{
+  "eventId": "7e429750-7f5d-4a55-9ce4-5609b32b9a67",
+  "eventType": "ORDER_CREATED",
+  "aggregateId": "ORD-2001",
+  "aggregateVersion": 1,
+  "occurredAt": "2026-08-29T10:00:00Z",
+  "producerId": "ecommerce-node-01",
+  "producerType": "ECOMMERCE",
+  "correlationId": "CORR-2001",
+  "payload": {
+    "customerId": "CUS-501",
+    "currency": "EUR",
+    "items": [
+      {
+        "productId": "PRD-100",
+        "productName": "Wireless Sensor",
+        "quantity": 2,
+        "unitPrice": 20.00
+      },
+      {
+        "productId": "PRD-205",
+        "productName": "Edge Gateway Adapter",
+        "quantity": 1,
+        "unitPrice": 15.00
+      }
+    ],
+    "totalAmount": 55.00,
+    "destination": {
+      "city": "Firenze",
+      "country": "IT"
+    }
+  }
+}
