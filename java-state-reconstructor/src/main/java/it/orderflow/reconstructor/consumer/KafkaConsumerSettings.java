@@ -24,7 +24,10 @@ public record KafkaConsumerSettings(
             clientId,
             "clientId is required"
         );
-        Objects.requireNonNull(topic, "topic is required");
+        Objects.requireNonNull(
+            topic,
+            "topic is required"
+        );
         Objects.requireNonNull(
             pollTimeout,
             "pollTimeout is required"
@@ -42,6 +45,12 @@ public record KafkaConsumerSettings(
             );
         }
 
+        if (clientId.isBlank()) {
+            throw new IllegalArgumentException(
+                "clientId cannot be blank"
+            );
+        }
+
         if (topic.isBlank()) {
             throw new IllegalArgumentException(
                 "topic cannot be blank"
@@ -56,5 +65,15 @@ public record KafkaConsumerSettings(
                 "pollTimeout must be positive"
             );
         }
+    }
+
+    public static KafkaConsumerSettings defaultSettings() {
+        return new KafkaConsumerSettings(
+            "localhost:9092",
+            "order-state-reconstructor",
+            "order-state-reconstructor-1",
+            "order-events",
+            Duration.ofMillis(500)
+        );
     }
 }
