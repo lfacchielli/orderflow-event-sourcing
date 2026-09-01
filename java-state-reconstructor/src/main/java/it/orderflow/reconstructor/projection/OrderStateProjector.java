@@ -15,6 +15,19 @@ import java.util.Objects;
 
 public final class OrderStateProjector {
 
+    private final OrderEventGuard eventGuard;
+
+    public OrderStateProjector() {
+        this(new OrderEventGuard());
+    }
+
+    OrderStateProjector(OrderEventGuard eventGuard) {
+        this.eventGuard = Objects.requireNonNull(
+            eventGuard,
+            "eventGuard is required"
+        );
+    }
+
     public OrderState apply(
         OrderState currentState,
         OrderEvent event
@@ -24,6 +37,8 @@ public final class OrderStateProjector {
         if (currentState == null) {
             return createInitialState(event);
         }
+
+        eventGuard.validate(currentState, event);
 
         return switch (event.eventType()) {
             case ORDER_CREATED ->
@@ -95,6 +110,8 @@ public final class OrderStateProjector {
     private OrderState createInitialState(OrderEvent event) {
         if (event.eventType() != EventType.ORDER_CREATED) {
             throw new InvalidStateTransitionException(
+                event.aggregateId(),
+                event.aggregateVersion(),
                 event.eventType()
             );
         }
@@ -325,6 +342,9 @@ public final class OrderStateProjector {
         OrderEvent event
     ) {
         return new InvalidStateTransitionException(
+            currentState.orderId(),
+            currentState.version(),
+            event.aggregateVersion(),
             currentState.status(),
             event.eventType()
         );

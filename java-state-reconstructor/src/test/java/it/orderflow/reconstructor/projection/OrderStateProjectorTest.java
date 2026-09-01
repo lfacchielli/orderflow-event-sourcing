@@ -216,12 +216,18 @@ class OrderStateProjectorTest {
 
         OrderEvent deliveredEvent = events.get(9);
 
-        assertThrows(
-            InvalidStateTransitionException.class,
-            () -> projector.apply(
-                created,
-                deliveredEvent
-            )
+        StateProjectionException exception =
+            assertThrows(
+                StateProjectionException.class,
+                () -> projector.apply(
+                    created,
+                    deliveredEvent
+                )
+            );
+
+        assertEquals(
+            ProjectionErrorCode.VERSION_GAP,
+            exception.errorCode()
         );
     }
 
