@@ -70,6 +70,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./postgres/migrations/001-create-order-projections.sql:/docker-entrypoint-initdb.d/02-create-order-projections.sql:ro
     networks:
       - orderflow-network
     healthcheck:
