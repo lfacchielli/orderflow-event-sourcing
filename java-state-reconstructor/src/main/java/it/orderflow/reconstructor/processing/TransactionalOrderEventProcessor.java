@@ -8,6 +8,8 @@ import it.orderflow.reconstructor.persistence.ProcessedEvent;
 import it.orderflow.reconstructor.persistence.ProcessedEventRepository;
 import it.orderflow.reconstructor.projection.OrderStateProjector;
 
+import it.orderflow.reconstructor.snapshot.SnapshotService;
+
 import java.sql.Connection;
 import java.util.Objects;
 
@@ -17,12 +19,29 @@ public final class TransactionalOrderEventProcessor {
     private final OrderStateRepository stateRepository;
     private final ProcessedEventRepository processedEventRepository;
     private final OrderStateProjector projector;
+    private final SnapshotService snapshotService;
 
     public TransactionalOrderEventProcessor(
         ConnectionFactory connectionFactory,
         OrderStateRepository stateRepository,
         ProcessedEventRepository processedEventRepository,
         OrderStateProjector projector
+    ) {
+        this(
+            connectionFactory,
+            stateRepository,
+            processedEventRepository,
+            projector,
+            null
+        );
+    }
+
+    public TransactionalOrderEventProcessor(
+        ConnectionFactory connectionFactory,
+        OrderStateRepository stateRepository,
+        ProcessedEventRepository processedEventRepository,
+        OrderStateProjector projector,
+        SnapshotService snapshotService
     ) {
         this.connectionFactory = Objects.requireNonNull(
             connectionFactory,
@@ -40,6 +59,7 @@ public final class TransactionalOrderEventProcessor {
             projector,
             "projector is required"
         );
+        this.snapshotService = snapshotService;
     }
 
     public TransactionalProcessingResult process(
@@ -87,6 +107,13 @@ public final class TransactionalOrderEventProcessor {
                     connection,
                     currentState
                 );
+
+                if (snapshotService != null) {
+                    snapshotService.createIfRequired(
+                        connection,
+                        currentState
+                    );
+                }
 
                 processedEventRepository.save(
                     connection,

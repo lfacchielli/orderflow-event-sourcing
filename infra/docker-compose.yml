@@ -71,6 +71,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
       - ./postgres/migrations/001-create-order-projections.sql:/docker-entrypoint-initdb.d/02-create-order-projections.sql:ro
+      - ./postgres/migrations/002-create-order-snapshots.sql:/docker-entrypoint-initdb.d/03-create-order-snapshots.sql:ro
     networks:
       - orderflow-network
     healthcheck:

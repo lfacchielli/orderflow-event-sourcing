@@ -1,17 +1,17 @@
 package it.orderflow.reconstructor.processing;
-import it.orderflow.reconstructor.persistence.ConnectionFactory;
-import it.orderflow.reconstructor.persistence.DatabaseSettings;
-import it.orderflow.reconstructor.persistence.JdbcOrderStateRepository;
-import it.orderflow.reconstructor.persistence.JdbcProcessedEventRepository;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.orderflow.reconstructor.domain.OrderEvent;
-import it.orderflow.reconstructor.processing.KafkaRecordMetadata;
-import it.orderflow.reconstructor.processing.TransactionalOrderEventProcessor;
-import it.orderflow.reconstructor.processing.TransactionalProcessingResult;
+import it.orderflow.reconstructor.persistence.ConnectionFactory;
+import it.orderflow.reconstructor.persistence.DatabaseSettings;
+import it.orderflow.reconstructor.persistence.JdbcOrderStateRepository;
+import it.orderflow.reconstructor.persistence.JdbcProcessedEventRepository;
 import it.orderflow.reconstructor.projection.OrderStateProjector;
 import it.orderflow.reconstructor.serialization.OrderEventDeserializer;
+import it.orderflow.reconstructor.snapshot.JdbcOrderSnapshotRepository;
+import it.orderflow.reconstructor.snapshot.SnapshotPolicy;
+import it.orderflow.reconstructor.snapshot.SnapshotService;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,10 +30,10 @@ public final class TransactionalProcessingCheck {
             );
         }
 
+        Path scenarioPath = Path.of(args[0]);
+
         JsonNode events = new ObjectMapper()
-            .readTree(
-                Files.readString(Path.of(args[0]))
-            )
+            .readTree(Files.readString(scenarioPath))
             .get("events");
 
         if (events == null || !events.isArray()) {
@@ -44,13 +44,17 @@ public final class TransactionalProcessingCheck {
 
         TransactionalOrderEventProcessor processor =
             new TransactionalOrderEventProcessor(
-                new ConnectionFactory(
-                    DatabaseSettings.fromEnvironment()
-                ),
-                new JdbcOrderStateRepository(),
-                new JdbcProcessedEventRepository(),
-                new OrderStateProjector()
-            );
+            new ConnectionFactory(
+                DatabaseSettings.fromEnvironment()
+            ),
+            new JdbcOrderStateRepository(),
+            new JdbcProcessedEventRepository(),
+            new OrderStateProjector(),
+            new SnapshotService(
+                new JdbcOrderSnapshotRepository(),
+                new SnapshotPolicy(5)
+            )
+        );
 
         OrderEventDeserializer deserializer =
             new OrderEventDeserializer();
