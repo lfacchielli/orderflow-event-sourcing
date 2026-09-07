@@ -31,6 +31,19 @@ public final class JdbcOrderSnapshotRepository
         LIMIT 1
         """;
 
+    private static final String FIND_LATEST_BEFORE_SQL = """
+        SELECT
+            order_id,
+            aggregate_version,
+            state_data,
+            created_at
+        FROM orderflow.order_snapshots
+        WHERE order_id = ?
+        AND aggregate_version < ?
+        ORDER BY aggregate_version DESC
+        LIMIT 1
+        """;
+
     private static final String INSERT_SQL = """
         INSERT INTO orderflow.order_snapshots (
             order_id,
@@ -98,6 +111,64 @@ public final class JdbcOrderSnapshotRepository
             }
         }
     }
+
+
+    @Override
+    public Optional<OrderSnapshot> findLatestBefore(
+        Connection connection,
+        String orderId,
+        long targetVersion
+    ) throws SQLException {
+        Objects.requireNonNull(
+            connection,
+            "connection is required"
+        );
+        Objects.requireNonNull(
+            orderId,
+            "orderId is required"
+        );
+
+        if (targetVersion < 1) {
+            throw new IllegalArgumentException(
+                "targetVersion must be greater than zero"
+            );
+        }
+
+        try (
+            PreparedStatement statement =
+                connection.prepareStatement(
+                    FIND_LATEST_BEFORE_SQL
+                )
+        ) {
+            statement.setString(1, orderId);
+            statement.setLong(2, targetVersion);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return Optional.empty();
+                }
+
+                OrderState state = deserializeState(
+                    resultSet.getString("state_data")
+                );
+
+                return Optional.of(
+                    new OrderSnapshot(
+                        resultSet.getString("order_id"),
+                        resultSet.getLong(
+                            "aggregate_version"
+                        ),
+                        state,
+                        resultSet
+                            .getTimestamp("created_at")
+                            .toInstant()
+                    )
+                );
+            }
+        }
+    }
+
+
 
     @Override
     public void save(

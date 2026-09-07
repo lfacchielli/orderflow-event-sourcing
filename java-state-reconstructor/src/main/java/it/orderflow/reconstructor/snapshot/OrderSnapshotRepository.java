@@ -11,6 +11,12 @@ public interface OrderSnapshotRepository {
         String orderId
     ) throws SQLException;
 
+    Optional<OrderSnapshot> findLatestBefore(
+        Connection connection,
+        String orderId,
+        long targetVersion
+    ) throws SQLException;
+
     void save(
         Connection connection,
         OrderSnapshot snapshot
