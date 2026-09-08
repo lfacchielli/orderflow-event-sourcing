@@ -4,9 +4,14 @@ import it.orderflow.reconstructor.domain.OrderState;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
 
 public interface OrderStateRepository {
+
+    List<OrderState> findAll(
+        Connection connection
+    ) throws SQLException;
 
     Optional<OrderState> findById(
         Connection connection,

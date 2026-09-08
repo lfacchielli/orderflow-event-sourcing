@@ -3,6 +3,8 @@ package it.orderflow.reconstructor.api;
 import com.sun.net.httpserver.HttpServer;
 import it.orderflow.reconstructor.api.handler.HealthHandler;
 import it.orderflow.reconstructor.persistence.ConnectionFactory;
+import it.orderflow.reconstructor.api.handler.OrdersHandler;
+import it.orderflow.reconstructor.persistence.JdbcOrderStateRepository;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -47,6 +49,15 @@ public final class ApiServer implements AutoCloseable {
             "/api/health",
             new HealthHandler(
                 connectionFactory,
+                response
+            )
+        );
+
+        server.createContext(
+            "/api/orders",
+            new OrdersHandler(
+                connectionFactory,
+                new JdbcOrderStateRepository(),
                 response
             )
         );

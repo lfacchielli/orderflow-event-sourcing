@@ -16,12 +16,34 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 public final class JdbcOrderStateRepository
     implements OrderStateRepository {
+
+    private static final String FIND_ALL_SQL = """
+        SELECT
+            order_id,
+            status,
+            aggregate_version,
+            customer_id,
+            currency,
+            items,
+            total_amount,
+            destination,
+            current_hub,
+            visited_hubs,
+            total_delay_minutes,
+            has_delay,
+            created_at,
+            delivered_at,
+            last_updated_at
+        FROM orderflow.order_states
+        ORDER BY last_updated_at DESC, order_id
+        """;
 
     private static final String FIND_BY_ID_SQL = """
         SELECT
@@ -93,6 +115,33 @@ public final class JdbcOrderStateRepository
 
     public JdbcOrderStateRepository() {
         this.objectMapper = JsonMapper.builder().build();
+    }
+
+
+    @Override
+    public List<OrderState> findAll(
+        Connection connection
+    ) throws SQLException {
+        Objects.requireNonNull(
+            connection,
+            "connection is required"
+        );
+
+        try (
+            PreparedStatement statement =
+                connection.prepareStatement(FIND_ALL_SQL);
+            ResultSet resultSet =
+                statement.executeQuery()
+        ) {
+            List<OrderState> states =
+                new ArrayList<>();
+
+            while (resultSet.next()) {
+                states.add(mapState(resultSet));
+            }
+
+            return List.copyOf(states);
+        }
     }
 
     @Override
