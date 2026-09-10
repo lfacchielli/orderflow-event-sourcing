@@ -7,6 +7,7 @@ import it.orderflow.reconstructor.api.handler.OrdersHandler;
 import it.orderflow.reconstructor.persistence.ConnectionFactory;
 import it.orderflow.reconstructor.persistence.JdbcOrderStateRepository;
 import it.orderflow.reconstructor.snapshot.JdbcOrderSnapshotRepository;
+import it.orderflow.reconstructor.api.handler.StaticFileHandler;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -70,6 +71,11 @@ public final class ApiServer implements AutoCloseable {
                 response,
                 historyHandler
             )
+        );
+
+        server.createContext(
+            "/",
+            new StaticFileHandler()
         );
 
         server.setExecutor(executor);

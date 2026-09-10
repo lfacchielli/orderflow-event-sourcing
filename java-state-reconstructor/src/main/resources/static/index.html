@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="OrderFlow event sourcing operations dashboard">
+    <title>OrderFlow Dashboard</title>
+
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <div>
+                <p class="eyebrow">
+                    Event Sourcing Operations
+                </p>
+
+                <h1>OrderFlow Dashboard</h1>
+
+                <p class="header-description">
+                    Stato corrente e storico degli ordini logistici
+                </p>
+            </div>
+
+            <div class="header-actions">
+                <div
+                    id="health-indicator"
+                    class="health-indicator health-loading"
+                >
+                    <span class="health-dot"></span>
+                    <span id="health-text">
+                        Verifica sistema...
+                    </span>
+                </div>
+
+                <button
+                    id="refresh-button"
+                    class="button button-primary"
+                    type="button"
+                >
+                    Aggiorna
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="page-container">
+        <section
+            id="error-message"
+            class="error-message hidden"
+            aria-live="polite"
+        ></section>
+
+        <section class="metrics-grid">
+            <article class="metric-card">
+                <p class="metric-label">Ordini totali</p>
+                <p id="total-orders" class="metric-value">0</p>
+                <p class="metric-caption">
+                    Proiezioni correnti
+                </p>
+            </article>
+
+            <article class="metric-card">
+                <p class="metric-label">Consegnati</p>
+                <p id="delivered-orders" class="metric-value">0</p>
+                <p class="metric-caption">
+                    Ordini completati
+                </p>
+            </article>
+
+            <article class="metric-card">
+                <p class="metric-label">Con ritardo</p>
+                <p id="delayed-orders" class="metric-value">0</p>
+                <p class="metric-caption">
+                    Ordini con eventi di ritardo
+                </p>
+            </article>
+
+            <article class="metric-card">
+                <p class="metric-label">Ritardo medio</p>
+                <p id="average-delay" class="metric-value">0 min</p>
+                <p class="metric-caption">
+                    Media sulle proiezioni
+                </p>
+            </article>
+        </section>
+
+        <section class="content-card">
+            <div class="section-header">
+                <div>
+                    <h2>Proiezioni degli ordini</h2>
+                    <p id="orders-caption">
+                        Caricamento ordini...
+                    </p>
+                </div>
+
+                <div class="filters">
+                    <label class="sr-only" for="order-search">
+                        Cerca ordini
+                    </label>
+
+                    <input
+                        id="order-search"
+                        class="input"
+                        type="search"
+                        placeholder="Cerca ordine, cliente, città o hub"
+                    >
+
+                    <label class="sr-only" for="status-filter">
+                        Filtra per stato
+                    </label>
+
+                    <select
+                        id="status-filter"
+                        class="select"
+                    >
+                        <option value="ALL">
+                            Tutti gli stati
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Ordine</th>
+                            <th>Stato</th>
+                            <th>Destinazione</th>
+                            <th>Hub corrente</th>
+                            <th>Ritardo</th>
+                            <th>Importo</th>
+                            <th>Versione</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="orders-body">
+                        <tr>
+                            <td colspan="7" class="empty-cell">
+                                Caricamento...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div
+        id="drawer-overlay"
+        class="drawer-overlay hidden"
+    >
+        <aside
+            id="order-drawer"
+            class="drawer"
+            aria-label="Dettaglio ordine"
+        >
+            <div class="drawer-header">
+                <div>
+                    <p class="eyebrow">Dettaglio ordine</p>
+                    <h2 id="drawer-order-id">Ordine</h2>
+                </div>
+
+                <button
+                    id="close-drawer"
+                    class="icon-button"
+                    type="button"
+                    aria-label="Chiudi dettaglio"
+                >
+                    ×
+                </button>
+            </div>
+
+            <div id="drawer-content" class="drawer-content">
+                <p>Caricamento...</p>
+            </div>
+        </aside>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
