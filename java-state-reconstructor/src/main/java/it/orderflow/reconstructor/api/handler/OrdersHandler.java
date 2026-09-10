@@ -8,6 +8,7 @@ import it.orderflow.reconstructor.api.OrderSummaryResponse;
 import it.orderflow.reconstructor.domain.OrderState;
 import it.orderflow.reconstructor.persistence.ConnectionFactory;
 import it.orderflow.reconstructor.persistence.OrderStateRepository;
+import it.orderflow.reconstructor.api.OrderHistoryApiPath;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -21,11 +22,13 @@ public final class OrdersHandler implements HttpHandler {
     private final ConnectionFactory connectionFactory;
     private final OrderStateRepository repository;
     private final JsonHttpResponse response;
+    private final OrderHistoryHandler historyHandler;
 
     public OrdersHandler(
         ConnectionFactory connectionFactory,
         OrderStateRepository repository,
-        JsonHttpResponse response
+        JsonHttpResponse response,
+        OrderHistoryHandler historyHandler
     ) {
         this.connectionFactory = Objects.requireNonNull(
             connectionFactory,
@@ -38,6 +41,10 @@ public final class OrdersHandler implements HttpHandler {
         this.response = Objects.requireNonNull(
             response,
             "response is required"
+        );
+        this.historyHandler = Objects.requireNonNull(
+            historyHandler,
+            "historyHandler is required"
         );
     }
 
@@ -64,6 +71,14 @@ public final class OrdersHandler implements HttpHandler {
                 .getRequestURI()
                 .getPath();
 
+            if (
+                OrderHistoryApiPath.snapshotOrderId(path) != null
+                    || OrderHistoryApiPath.stateOrderId(path) != null
+            ) {
+                historyHandler.handle(exchange);
+                return;
+            }
+
             if (OrderApiPath.isCollection(path)) {
                 sendOrderList(exchange);
                 return;
@@ -83,6 +98,14 @@ public final class OrdersHandler implements HttpHandler {
                         "API resource not found"
                     )
                 );
+                return;
+            }
+
+            if (
+                OrderHistoryApiPath.snapshotOrderId(path) != null
+                    || OrderHistoryApiPath.stateOrderId(path) != null
+            ) {
+                historyHandler.handle(exchange);
                 return;
             }
 

@@ -2,9 +2,11 @@ package it.orderflow.reconstructor.api;
 
 import com.sun.net.httpserver.HttpServer;
 import it.orderflow.reconstructor.api.handler.HealthHandler;
-import it.orderflow.reconstructor.persistence.ConnectionFactory;
+import it.orderflow.reconstructor.api.handler.OrderHistoryHandler;
 import it.orderflow.reconstructor.api.handler.OrdersHandler;
+import it.orderflow.reconstructor.persistence.ConnectionFactory;
 import it.orderflow.reconstructor.persistence.JdbcOrderStateRepository;
+import it.orderflow.reconstructor.snapshot.JdbcOrderSnapshotRepository;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -53,12 +55,20 @@ public final class ApiServer implements AutoCloseable {
             )
         );
 
+        OrderHistoryHandler historyHandler =
+            new OrderHistoryHandler(
+                connectionFactory,
+                new JdbcOrderSnapshotRepository(),
+                response
+            );
+
         server.createContext(
             "/api/orders",
             new OrdersHandler(
                 connectionFactory,
                 new JdbcOrderStateRepository(),
-                response
+                response,
+                historyHandler
             )
         );
 

@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.sun.net.httpserver.HttpExchange;
 
+import com.fasterxml.jackson.databind.SerializationFeature;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -18,6 +20,9 @@ public final class JsonHttpResponse {
     public JsonHttpResponse() {
         this.objectMapper = JsonMapper.builder()
             .addModule(new JavaTimeModule())
+            .disable(
+                SerializationFeature.WRITE_DATES_AS_TIMESTAMPS
+            )
             .build();
     }
 

@@ -15,9 +15,34 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
+
 
 public final class JdbcOrderSnapshotRepository
     implements OrderSnapshotRepository {
+
+    private static final String FIND_ALL_SQL = """
+        SELECT
+            order_id,
+            aggregate_version,
+            state_data,
+            created_at
+        FROM orderflow.order_snapshots
+        WHERE order_id = ?
+        ORDER BY aggregate_version
+        """;
+
+    private static final String FIND_BY_VERSION_SQL = """
+        SELECT
+            order_id,
+            aggregate_version,
+            state_data,
+            created_at
+        FROM orderflow.order_snapshots
+        WHERE order_id = ?
+        AND aggregate_version = ?
+        """;
 
     private static final String FIND_LATEST_SQL = """
         SELECT
@@ -66,6 +91,89 @@ public final class JdbcOrderSnapshotRepository
             .addModule(new JavaTimeModule())
             .build();
     }
+
+
+
+    @Override
+    public List<OrderSnapshot> findAll(
+        Connection connection,
+        String orderId
+    ) throws SQLException {
+        Objects.requireNonNull(
+            connection,
+            "connection is required"
+        );
+        Objects.requireNonNull(
+            orderId,
+            "orderId is required"
+        );
+
+        try (
+            PreparedStatement statement =
+                connection.prepareStatement(FIND_ALL_SQL)
+        ) {
+            statement.setString(1, orderId);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                List<OrderSnapshot> snapshots =
+                    new ArrayList<>();
+
+                while (resultSet.next()) {
+                    snapshots.add(
+                        mapSnapshot(resultSet)
+                    );
+                }
+
+                return List.copyOf(snapshots);
+            }
+        }
+    }
+
+
+
+    @Override
+    public Optional<OrderSnapshot> findByVersion(
+        Connection connection,
+        String orderId,
+        long aggregateVersion
+    ) throws SQLException {
+        Objects.requireNonNull(
+            connection,
+            "connection is required"
+        );
+        Objects.requireNonNull(
+            orderId,
+            "orderId is required"
+        );
+
+        if (aggregateVersion < 1) {
+            throw new IllegalArgumentException(
+                "aggregateVersion must be greater than zero"
+            );
+        }
+
+        try (
+            PreparedStatement statement =
+                connection.prepareStatement(
+                    FIND_BY_VERSION_SQL
+                )
+        ) {
+            statement.setString(1, orderId);
+            statement.setLong(2, aggregateVersion);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(
+                    mapSnapshot(resultSet)
+                );
+            }
+        }
+    }
+
+
 
     @Override
     public Optional<OrderSnapshot> findLatest(
@@ -166,6 +274,26 @@ public final class JdbcOrderSnapshotRepository
                 );
             }
         }
+    }
+
+
+
+
+    private OrderSnapshot mapSnapshot(
+        ResultSet resultSet
+    ) throws SQLException {
+        OrderState state = deserializeState(
+            resultSet.getString("state_data")
+        );
+
+        return new OrderSnapshot(
+            resultSet.getString("order_id"),
+            resultSet.getLong("aggregate_version"),
+            state,
+            resultSet
+                .getTimestamp("created_at")
+                .toInstant()
+        );
     }
 
 
