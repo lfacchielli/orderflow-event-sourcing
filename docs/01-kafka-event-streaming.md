@@ -81,7 +81,7 @@ Il valore principale di questa ideologia non è soltanto la velocità, bensì la
 
 ## 3. Kafka come log distribuito
 
-Kafka può essere di fatto considerato come un **log append-only distribuito**. Un producer aggiunge record in coda al log. Un consumer legge il log mantenendo una propria posizione.
+Kafka può essere di fatto considerato come un **log append-only distribuito**, dove un producer è in grado di aggiungere record in coda al log. Successivamente un consumer leggerà il log mantenendo una propria posizione.
 
 ```text
 inizio del log                                  fine del log
@@ -92,7 +92,7 @@ inizio del log                                  fine del log
                                       posizione consumer
 ```
 
-La lettura non elimina il record. Consumer diversi possono leggere la stessa cronologia in momenti e con velocità differenti. Questa caratteristica rende Kafka adatto a:
+Fatto particolare è che la lettura non elimina il record, pertanto, consumer differenti possono leggere la stessa cronologia in momenti e con velocità differenti. Questa caratteristica rende Kafka adatto a:
 
 - pipeline dati;
 - architetture event-driven;
@@ -101,7 +101,7 @@ La lettura non elimina il record. Consumer diversi possono leggere la stessa cro
 - ricostruzione di proiezioni;
 - elaborazioni in tempo reale e batch.
 
-Kafka combina pubblicazione, sottoscrizione, memorizzazione durevole e processamento degli eventi in una piattaforma distribuita.[^kafka-intro]
+In conclusione, possiamo dire che Kafka permette pubblicazione, sottoscrizione, memorizzazione durevole e processamento degli eventi in una piattaforma distribuita.
 
 ## 4. Broker, cluster e replica
 
@@ -117,25 +117,25 @@ Un **broker** è un processo Kafka che conserva partizioni e risponde alle richi
     P1 replica       P2 replica       P0 replica
 ```
 
-In un ambiente di produzione, le partizioni possono essere replicate. Una replica leader gestisce letture e scritture, mentre le repliche follower mantengono copie dei dati. La replica migliora la disponibilità in caso di guasto di un broker.
-
-Nel progetto didattico OrderFlow viene usato un singolo broker e un fattore di replica pari a 1. Questa configurazione è sufficiente per dimostrare i concetti, ma non offre tolleranza al guasto del broker.
+In un ambiente di produzione, le partizioni possono essere replicate, grazie al fatto che una replica leader gestisce letture e scritture, mentre le repliche follower mantengono copie dei dati. La replica migliora inevitabilmente la disponibilità in caso di guasto di un broker.
 
 ## 5. Topic, partizioni e offset
+Forniamo adesso alcune definizioni chiave impiegate all'interno del'ambiente Kafka e del progetto OrderFlow realizzato.
 
 ### Topic
 
-Un **topic** è un flusso denominato di record. Producers e consumers non devono conoscersi direttamente: condividono il nome del topic.
+Un **topic** è un flusso denominato di record. Producers e consumers non devono quindi necessariamente conoscersi direttamente, è sufficiente che condividono il nome del topic.
 
-Esempio OrderFlow:
+Esempio di progetto OrderFlow:
 
 ```text
 order-events
 ```
+è il topic che contiene gli eventi relativi agli ordini, sul quale scrive un producer e legge un consumer.
 
 ### Partizione
 
-Un topic è diviso in partizioni. Ogni partizione è un log ordinato indipendente.
+Un topic, all'aumentare della sua grandezza, può essere diviso in partizioni. Ogni partizione rimane pur sempre un log ordinato indipendente.
 
 ```text
 Topic: order-events
@@ -145,11 +145,13 @@ Partition 1: [e0] [e1]
 Partition 2: [e0] [e1] [e2] [e3]
 ```
 
-Le partizioni permettono di distribuire archiviazione e lavoro. Sono quindi l'unità fondamentale di parallelismo.
+Le partizioni permettono di distribuire archiviazione e lavoro, rappresentando il concetto cardine di parallelismo.
 
 ### Offset
 
-L'offset è la posizione di un record **all'interno di una partizione**. Non esiste un offset globale valido per tutto il topic.
+L'offset è la posizione di un record **all'interno di una partizione**. 
+
+N.B. Non esiste un offset globale valido per tutto il topic.
 
 Un'identità Kafka completa è quindi:
 
@@ -163,7 +165,7 @@ Esempio:
 order-events, partition 2, offset 37
 ```
 
-Kafka conserva per ogni consumer group l'offset committato. Il consumer può effettuare commit automatici oppure manuali. In caso di riavvio, il consumer riprende dalla posizione committata.[^kafka-distribution]
+Kafka conserva per ogni consumer group l'offset committato. Il consumer può effettuare commit automatici oppure manuali. In caso di riavvio, il consumer riprende dalla posizione committata.
 
 ## 6. Ordinamento e chiavi
 
@@ -176,7 +178,7 @@ Partition 1: B1 -> B2 -> B3      ordine garantito
 A2 rispetto a B2                 nessun ordine globale garantito
 ```
 
-Per mantenere insieme gli eventi dello stesso aggregato, il producer usa una chiave stabile. Il partizionatore calcola la partizione a partire dalla chiave.
+Pertanto, per mantenere insieme gli eventi dello stesso aggregato, il producer usa una chiave stabile, mentre il partizionatore calcola la partizione a partire proprio dalla chiave.
 
 In OrderFlow:
 
@@ -193,13 +195,11 @@ PAYMENT_COMPLETED  -> Partition 1
 ORDER_DELIVERED    -> Partition 1
 ```
 
-Questa scelta consente al consumer di osservare gli eventi di uno stesso ordine nella sequenza prevista. Il campo `aggregateVersion` aggiunge un ulteriore controllo applicativo: anche se un evento arrivasse fuori sequenza, il projector potrebbe rilevare il version gap.
+Questa scelta consente al consumer di osservare gli eventi di uno stesso ordine nella sequenza prevista. Il campo `aggregateVersion` aggiunge un ulteriore controllo applicativo: anche se un evento arrivasse fuori sequenza, il projector potrebbe rilevare il version gap e riuscire a reinserirlo nella posizione corretta.
 
 ## 7. Persistenza, retention e replay
 
-Kafka conserva i record in base a una politica di retention. Il record non viene eliminato semplicemente perché un consumer lo ha letto.
-
-Questa separazione permette il replay:
+Kafka conserva i record in base a una politica di retention. Il record non viene eliminato semplicemente perché un consumer lo ha letto. Questa separazione permette il replay:
 
 ```text
 Consumer live
@@ -235,7 +235,7 @@ OrderState storico o finale
 
 ## 8. Kafka e sistemi tradizionali
 
-Kafka non sostituisce automaticamente un database relazionale. I due strumenti rispondono a esigenze differenti.
+Kafka non sostituisce automaticamente un database relazionale, proprio perché i due strumenti devono rispondere ad esigenze differenti.
 
 ### Database relazionale
 
@@ -252,7 +252,7 @@ Kafka non sostituisce automaticamente un database relazionale. I due strumenti r
 - throughput elevato;
 - replay degli eventi.
 
-In OrderFlow, Kafka rappresenta la cronologia degli eventi, mentre PostgreSQL conserva proiezioni ottimizzate per la lettura della dashboard.
+In OrderFlow infatti, Kafka rappresenta la cronologia degli eventi, mentre PostgreSQL conserva proiezioni ottimizzate per la lettura della dashboard.
 
 ```text
 Kafka                           PostgreSQL
@@ -299,42 +299,20 @@ La posizione Kafka viene committata soltanto dopo l'elaborazione applicativa.
 
 ## 10. Limiti e considerazioni progettuali
 
-Kafka introduce vantaggi ma anche complessità:
+Kafka introduce vantaggi, ma ovviamente anche complessità:
 
 - occorre stabilire una chiave di partizionamento corretta;
 - il numero di partizioni limita il parallelismo massimo di un consumer group;
 - possono avvenire rebalance quando cambiano i membri del gruppo;
 - la gestione degli offset influenza duplicati e perdita di elaborazioni;
 - i contratti degli eventi devono evolvere in modo compatibile;
-- un record errato può bloccare una partizione se non esiste una strategia DLQ;
-- un singolo broker con replication factor 1 non è adatto a produzione.
 
-La documentazione ufficiale specifica che `group.id` identifica il consumer group e che le proprietà di deserializzazione, bootstrap e offset reset sono centrali nella configurazione del consumer.[^consumer-config]
 
-## 11. Domande utili per l'esame
-
-### Perché la chiave Kafka è `orderId`?
-
-Perché tutti gli eventi dello stesso ordine devono raggiungere la stessa partizione e mantenere un ordine relativo coerente.
-
-### Kafka garantisce l'ordine globale?
-
-No. Garantisce l'ordine dentro la singola partizione.
-
-### Che differenza c'è tra offset corrente e offset committato?
-
-La posizione corrente avanza durante la lettura. L'offset committato è la posizione durevole da cui il consumer riprende dopo un riavvio.
-
-### Perché usare il commit manuale?
-
-Per committare soltanto dopo che lo stato è stato elaborato e persistito con successo.
-
-### Perché Kafka e PostgreSQL sono entrambi presenti?
-
-Kafka conserva e distribuisce la cronologia; PostgreSQL espone una proiezione interrogabile velocemente.
 
 ## 12. Riferimenti
 
-[^kafka-intro]: Apache Kafka, *Introduction*, https://kafka.apache.org/intro/
-[^kafka-distribution]: Apache Kafka, *Distribution and Consumer Offset Tracking*, https://kafka.apache.org/43/implementation/distribution/
-[^consumer-config]: Apache Kafka, *Consumer Configs*, https://kafka.apache.org/41/configuration/consumer-configs/
+Apache Kafka, *Introduction*, https://kafka.apache.org/intro/
+
+Apache Kafka, *Distribution and Consumer Offset Tracking*, https://kafka.apache.org/43/implementation/distribution/
+
+Apache Kafka, *Consumer Configs*, https://kafka.apache.org/41/configuration/consumer-configs/
