@@ -19,11 +19,9 @@
 
 ## 1. Obiettivo del documento
 
-L'Event Sourcing è un modello di persistenza in cui lo stato non viene considerato il dato primario. Il dato primario è la sequenza degli eventi che ha prodotto quello stato.
+L'Event Sourcing è un modello di persistenza in cui lo stato non viene considerato come dato primario. Il dato primario è semplicemente la sequenza degli eventi che ha prodotto quello stato. In altre parole, si può sintetizzare il pattern come la memorizzazione di tutte le modifiche allo stato applicativo sotto forma di sequenza di eventi. La cronologia potrà poi essere interrogata ed usata per ricostruire stati passati.
 
-Martin Fowler sintetizza il pattern come la memorizzazione di tutte le modifiche allo stato applicativo sotto forma di sequenza di eventi. La cronologia può poi essere interrogata e usata per ricostruire stati passati.[^fowler-es]
-
-Microsoft sottolinea che il pattern offre auditabilità e ricostruzione storica, ma introduce compromessi significativi nella gestione di concorrenza, query ed evoluzione degli schemi.[^microsoft-es]
+Inoltre, il pattern offre auditabilità e ricostruzione storica, introducendo però compromessi significativi nella gestione di concorrenza, query ed evoluzione degli schemi.
 
 ## 2. Dal CRUD all'Event Sourcing
 
@@ -44,11 +42,11 @@ PACKED -> IN_TRANSIT -> DELIVERED
                     stato precedente perso
 ```
 
-Senza un audit log separato, non è possibile sapere come si sia arrivati allo stato finale.
+Senza un audit log separato, è **impossibile** sapere come si sia arrivati allo stato finale.
 
 ### Modello Event Sourcing
 
-Con Event Sourcing si conserva ogni fatto:
+Con Event Sourcing, i paradigma cambia, perché si conserva ogni fatto accaduto:
 
 ```text
 v1  ORDER_CREATED
@@ -70,6 +68,8 @@ state_v10 = fold(apply, empty_state, events_v1_v10)
 ```
 
 ## 3. Evento, comando e stato
+
+Definiamo alcuni concetti chiave del tema Event Sourcing:
 
 ### Comando
 
@@ -127,7 +127,7 @@ OrderFlow parte da eventi già generati e si concentra soprattutto sulla parte `
 
 ## 4. Aggregati e versionamento
 
-Un aggregato è un confine di consistenza del dominio. Nell'esempio logistico l'aggregato è l'ordine.
+Un aggregato è un confine di consistenza del dominio. Nell'esempio logistico l'aggregato è proprio l'ordine.
 
 ```text
 aggregateId = ORD-2001
@@ -159,13 +159,13 @@ Il versionamento applicativo è importante anche quando il sistema di messaggist
 
 ## 5. Funzione di proiezione
 
-Il cuore di un sistema event-sourced è una funzione deterministica:
+Il cuore di un sistema event-sourced è una funzione deterministica
 
 ```text
 next_state = apply(current_state, event)
 ```
 
-In Java:
+ad esempio:
 
 ```java
 OrderState nextState = projector.apply(
@@ -174,7 +174,7 @@ OrderState nextState = projector.apply(
 );
 ```
 
-Proprietà desiderate:
+che possiede proprietà ben precise:
 
 - nessun accesso diretto a Kafka;
 - nessun accesso diretto a PostgreSQL;
@@ -244,11 +244,11 @@ replayService.replayAtTime(
 );
 ```
 
-Il time travel è uno dei vantaggi più rappresentativi dell'Event Sourcing: non si osserva soltanto dove si trova il sistema, ma anche come ci è arrivato.[^fowler-es]
+Il **time travel** è uno dei vantaggi più rappresentativi dell'Event Sourcing, proprio perché siamo in grado di osservare tutto il percorso compiuto e non solo lo stato attuale in cui si trova il sistema.
 
 ## 7. Proiezioni e consistenza eventuale
 
-Una proiezione è un modello di lettura derivato dagli eventi. Può essere ricostruita perché non rappresenta la fonte primaria.
+Una **proiezione** è un modello di lettura derivato dagli eventi e può essere ricostruita perché non rappresenta la fonte primaria.
 
 ```text
 Event stream
@@ -271,7 +271,7 @@ Questo è un esempio di **consistenza eventuale**. La proiezione converge allo s
 
 ## 8. CQRS
 
-CQRS significa **Command Query Responsibility Segregation**. Il principio consiste nel separare il modello usato per modificare il sistema da quello usato per leggerlo. Fowler evidenzia che la separazione può essere utile in domini complessi, ma aggiunge complessità e non è adatta a ogni sistema.[^fowler-cqrs]
+CQRS significa **Command Query Responsibility Segregation**. Il principio consiste nel separare il modello usato per modificare il sistema da quello usato per leggerlo. Pertanto questa ideologia può essere utile in domini complessi dove iene richiesta consistenza e sicurezza del dato, ma aggiunge difficoltà applicative e non è adatta ad ogni sistema.
 
 ```text
 Write side                         Read side
@@ -299,7 +299,7 @@ OrderFlow usa una forma didattica di separazione:
 
 ### Idempotenza
 
-Un'operazione idempotente può essere ripetuta senza modificare ulteriormente il risultato.
+Un'**operazione idempotente** può essere ripetuta senza modificare ulteriormente il risultato.
 
 Nel progetto, `processed_events` conserva:
 
@@ -352,10 +352,8 @@ Gli eventi immutabili non dovrebbero essere modificati retroattivamente. Quando 
 
 - aggiunta di campi opzionali;
 - versionamento esplicito dello schema;
-- upcasting durante la lettura;
 - nuovi tipi di evento;
 - compatibilità tra producer e consumer;
-- Schema Registry con Avro, Protobuf o JSON Schema.
 
 Un consumer robusto non dovrebbe assumere che tutti gli eventi siano stati prodotti dalla stessa versione dell'applicazione.
 
@@ -415,32 +413,13 @@ stato v10 -> DELIVERED
 - difficoltà nelle cancellazioni normative;
 - necessità di osservabilità e strumenti operativi.
 
-Microsoft raccomanda l'Event Sourcing quando auditabilità e ricostruzione storica giustificano la complessità, non come scelta predefinita per ogni componente.[^microsoft-es]
+Di consuetudine viene raccomandato l'Event Sourcing quando auditabilità e ricostruzione storica giustificano la complessità che si trova nello sviluppo del progetto, non come scelta predefinita per ogni componente.
 
-## 13. Domande utili per l'esame
-
-### Qual è la fonte di verità?
-
-La cronologia degli eventi. La tabella `order_states` è una proiezione derivata.
-
-### Perché non aggiornare direttamente lo stato?
-
-Per non perdere le informazioni sui cambiamenti che hanno prodotto lo stato.
-
-### Il projector può accedere al database?
-
-È preferibile di no. Un projector puro è più facile da testare e riusare.
-
-### CQRS ed Event Sourcing sono la stessa cosa?
-
-No. CQRS separa comandi e query; Event Sourcing conserva i cambiamenti come eventi.
-
-### Come viene gestito un duplicato?
-
-Con un identificatore evento già registrato e con controlli sulla versione dell'aggregato.
 
 ## 14. Riferimenti
 
-[^fowler-es]: Martin Fowler, *Event Sourcing*, https://martinfowler.com/eaaDev/EventSourcing.html
-[^fowler-cqrs]: Martin Fowler, *CQRS*, https://martinfowler.com/bliki/CQRS.html
-[^microsoft-es]: Microsoft Azure Architecture Center, *Event Sourcing pattern*, https://learn.microsoft.com/it-it/azure/architecture/patterns/event-sourcing
+Martin Fowler, *Event Sourcing*, https://martinfowler.com/eaaDev/EventSourcing.html
+
+Martin Fowler, *CQRS*, https://martinfowler.com/bliki/CQRS.html
+
+Microsoft Azure Architecture Center, *Event Sourcing pattern*, https://learn.microsoft.com/it-it/azure/architecture/patterns/event-sourcing
