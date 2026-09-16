@@ -13,34 +13,46 @@
 9. [Replay storico](#9-replay-storico)
 10. [Snapshot](#10-snapshot)
 11. [API HTTP e dashboard](#11-api-http-e-dashboard)
-12. [Test e verifiche](#12-test-e-verifiche)
-13. [Riproducibilità da GitHub](#13-riproducibilità-da-github)
-14. [Procedura di avvio consigliata](#14-procedura-di-avvio-consigliata)
-15. [Demo per l'esame](#15-demo-per-lesame)
-16. [Limitazioni note](#16-limitazioni-note)
-17. [Sviluppi futuri](#17-sviluppi-futuri)
-18. [Checklist finale del repository](#18-checklist-finale-del-repository)
+12. [Limitazioni note](#12-limitazioni-note)
+13. [Sviluppi futuri](#13-sviluppi-futuri)
 
 ## 1. Scopo del progetto
 
-OrderFlow è un progetto didattico di Data Engineering ed Event Sourcing applicato a un dominio logistico. L'obiettivo è dimostrare che lo stato corrente di un ordine può essere ricostruito da una sequenza immutabile e versionata di eventi.
+OrderFlow è un progetto didattico applicato al dominio della logistica. L’obiettivo principale è dimostrare che lo stato corrente di un ordine non deve necessariamente essere memorizzato come unico dato autorevole, ma può essere ricostruito a partire da una sequenza immutabile e versionata di eventi.
 
-Il progetto non si limita a calcolare lo stato finale. Dimostra anche:
+In un sistema tradizionale, lo stato di un ordine viene aggiornato direttamente nel database. Il valore precedente viene quindi sostituito da quello nuovo. Con l’Event Sourcing, invece, ogni cambiamento viene rappresentato come un fatto avvenuto nel dominio.
 
-- trasporto degli eventi con Kafka;
-- partizionamento per ordine;
-- consumer Java con commit manuale;
-- validazione della sequenza;
-- persistenza di proiezioni PostgreSQL;
-- idempotenza;
-- replay completo e storico;
-- snapshot periodici;
-- API HTTP;
-- dashboard HTML, CSS e JavaScript.
+```text
+ORDER_CREATED
+ORDER_CONFIRMED
+PAYMENT_COMPLETED
+ORDER_PACKED
+SHIPMENT_STARTED
+ORDER_DELIVERED
+```
+
+La sequenza degli eventi descrive l’intera storia dell’ordine. Lo stato corrente viene ottenuto applicando questi eventi in ordine.
+
+Il progetto utilizza questo principio per mostrare concretamente diversi aspetti tipici di un’architettura event-driven:
+
+- produzione e trasporto degli eventi tramite Kafka;
+- partizionamento degli eventi in base all’ordine;
+- validazione della sequenza e delle versioni;
+- ricostruzione deterministica dello stato;
+- persistenza delle proiezioni in PostgreSQL;
+- gestione idempotente degli eventi duplicati;
+- replay completo, storico e temporale;
+- creazione periodica di snapshot;
+- esposizione dei dati tramite API HTTP;
+- visualizzazione mediante una dashboard HTML, CSS e JavaScript.
+
+OrderFlow non vuole rappresentare un sistema completo pronto per la produzione. Lo scopo è rendere visibili e verificabili i concetti principali dell’Event Sourcing, mostrando come i diversi componenti collaborano all’interno della stessa pipeline.
 
 ## 2. Risultato raggiunto
 
-Lo scenario principale `ORD-2001` attraversa dieci eventi e produce:
+Lo scenario principale del progetto riguarda l’ordine `ORD-2001`. La cronologia contiene dieci eventi che descrivono l’intero ciclo di vita dell’ordine, dalla creazione fino alla consegna.
+
+Al termine della ricostruzione, il sistema produce il seguente stato:
 
 ```text
 orderId:            ORD-2001
@@ -52,19 +64,25 @@ totalAmount:        55.00
 currentHub:         HUB-FIRENZE
 visitedHubs:        HUB-MODENA, HUB-BOLOGNA, HUB-FIRENZE
 totalDelayMinutes:  35
-hasDelay:            true
+hasDelay:           true
 ```
 
-Sono inoltre disponibili due snapshot:
+Lo stato mostra non soltanto che l’ordine è stato consegnato, ma anche alcune informazioni accumulate durante la sua evoluzione. Sono presenti, per esempio, gli hub attraversati e il ritardo totale registrato durante la spedizione.
+
+Il sistema crea inoltre due snapshot:
 
 ```text
 v5  PACKED
 v10 DELIVERED
 ```
 
-La dashboard consente di visualizzare lo stato corrente e aprire lo stato storico corrispondente agli snapshot.
+Lo snapshot alla versione 5 rappresenta l’ordine quando era stato preparato ma non ancora spedito. Lo snapshot alla versione 10 rappresenta invece lo stato finale.
+
+La dashboard consente di visualizzare la proiezione corrente e di aprire gli snapshot disponibili. In questo modo è possibile passare dallo stato `DELIVERED v10` allo stato storico `PACKED v5`, per poi tornare alla situazione corrente.
 
 ## 3. Architettura generale
+
+L’architettura di OrderFlow è composta da una pipeline che parte dal generatore Python e termina nella dashboard web.
 
 ```text
 +-------------------------+
@@ -113,67 +131,95 @@ La dashboard consente di visualizzare lo stato corrente e aprire lo stato storic
 +-------------------------+
 ```
 
+Il generatore Python crea eventi logistici sotto forma di documenti JSON. Ogni evento viene pubblicato su Kafka utilizzando `orderId` come chiave, in modo che tutti gli eventi appartenenti allo stesso ordine raggiungano la stessa partizione.
+
+Il consumer Java legge i record, deserializza il JSON, verifica la chiave, controlla la versione e applica il projector. Il nuovo stato viene poi salvato in PostgreSQL attraverso una transazione JDBC.
+
+Il database non rappresenta la cronologia autorevole. Contiene invece dati derivati, ottimizzati per essere interrogati velocemente dalle API e dalla dashboard.
+
+L’applicazione Java espone infine sia gli endpoint HTTP sia i file statici del frontend. Di conseguenza, API e interfaccia vengono servite dallo stesso processo e dalla stessa porta.
+
 ## 4. Struttura logica dei componenti
 
 ### Generatore Python
 
-Responsabilità:
+Il generatore Python simula diversi sistemi che producono eventi relativi a un ordine, come un servizio e-commerce, un sistema di pagamento oppure un nodo logistico.
 
-- creazione di eventi sintetici;
-- timestamp UTC;
-- versionamento progressivo;
-- serializzazione JSON;
-- pubblicazione Kafka prevista dai componenti `kafka/publisher.py` e `publish_main.py`;
-- test sullo scenario e sul batch.
+Le sue responsabilità principali sono:
 
-### Kafka
+- creare eventi sintetici ma coerenti;
+- utilizzare timestamp in formato UTC;
+- incrementare progressivamente la versione dell’aggregato;
+- serializzare gli eventi in JSON;
+- preparare scenari deterministici;
+- pubblicare i record su Kafka;
+- verificare il comportamento tramite test automatici.
 
-Responsabilità:
+I componenti `kafka/publisher.py` e `publish_main.py` sono predisposti per la pubblicazione, mentre i generatori di scenario producono sequenze utilizzabili anche localmente nei test e nei replay.
 
-- memorizzazione durevole del flusso;
-- disaccoppiamento tra Python e Java;
-- ordinamento per partizione;
-- tracking degli offset;
-- replay storico.
+### Apache Kafka
+
+Kafka svolge il ruolo di log distribuito e intermediario tra il producer Python e il consumer Java.
+
+Kafka permette ai due componenti di rimanere disaccoppiati. Il producer non deve conoscere direttamente il consumer e il consumer può iniziare a elaborare gli eventi anche dopo la loro pubblicazione.
+
+Le responsabilità principali di Kafka nel progetto sono:
+
+- conservare il flusso degli eventi;
+- distribuire i record tra le partizioni;
+- mantenere l’ordinamento all’interno della singola partizione;
+- associare una posizione a ogni record tramite l’offset;
+- conservare gli offset committati dai consumer group;
+- permettere la rilettura storica degli eventi.
 
 ### Ricostruttore Java
 
-Package principali:
+Il ricostruttore Java contiene la parte principale della logica applicativa. Il codice è suddiviso in package con responsabilità distinte:
 
 ```text
 domain          modelli immutabili
-serialization   JSON -> OrderEvent
-projection      regole di transizione
-processing      processamento e transazioni
-consumer        integrazione Kafka
-persistence     JDBC e repository
+serialization   conversione JSON -> OrderEvent
+projection      regole di transizione dello stato
+processing      elaborazione e transazioni applicative
+consumer        integrazione con Kafka
+persistence     JDBC e repository PostgreSQL
 replay          replay completo e storico
 snapshot        policy e replay ottimizzato
-api             API HTTP e file statici
+api             API HTTP e risorse statiche
 ```
+
+Questa separazione permette di mantenere la logica di dominio indipendente dall’infrastruttura. Il projector, per esempio, non conosce Kafka o PostgreSQL. Riceve soltanto lo stato precedente e l’evento da applicare.
 
 ### PostgreSQL
 
-Responsabilità:
+PostgreSQL conserva le proiezioni necessarie alla lettura. Il database viene utilizzato per:
 
-- stato corrente interrogabile;
-- deduplicazione applicativa;
-- snapshot JSONB;
-- transazioni atomiche.
+- memorizzare lo stato corrente di ogni ordine;
+- registrare gli eventi già processati;
+- impedire elaborazioni duplicate;
+- salvare gli snapshot in formato JSONB;
+- garantire che più operazioni vengano completate nella stessa transazione.
+
+PostgreSQL fornisce quindi una rappresentazione interrogabile dello stato, mentre Kafka conserva la cronologia degli eventi.
 
 ### Dashboard
 
-Responsabilità:
+La dashboard rappresenta il livello finale della pipeline. È stata sviluppata utilizzando esclusivamente HTML, CSS e JavaScript standard.
 
-- metriche sintetiche;
-- lista e ricerca ordini;
-- dettaglio dell'ordine;
-- hub, ritardi e articoli;
-- navigazione tra stato corrente e snapshot.
+La dashboard permette di:
+
+- visualizzare metriche sintetiche;
+- cercare e filtrare gli ordini;
+- aprire il dettaglio di una proiezione;
+- vedere articoli, destinazione, ritardo e hub visitati;
+- consultare gli snapshot disponibili;
+- passare dallo stato corrente a uno stato storico.
 
 ## 5. Contratto degli eventi
 
-Struttura generale:
+Tutti gli eventi seguono una struttura comune. Alcuni campi identificano l’evento e l’aggregato, mentre il contenuto del `payload` cambia in base al tipo di evento.
+
+Un esempio semplificato è il seguente:
 
 ```json
 {
@@ -193,18 +239,24 @@ Struttura generale:
 }
 ```
 
-Regole:
+I campi principali rispettano le seguenti regole:
 
 ```text
-eventId             univoco
-aggregateId          identificatore ordine
-aggregateVersion     progressivo da 1
-occurredAt           timestamp UTC
-Kafka key            uguale ad aggregateId
-payload              dipendente dal tipo evento
+eventId             identificatore univoco dell'evento
+aggregateId         identificatore dell'ordine
+aggregateVersion    versione progressiva a partire da 1
+occurredAt          timestamp UTC del fatto
+Kafka key           uguale ad aggregateId
+payload             contenuto dipendente dal tipo di evento
 ```
 
+L’`eventId` viene utilizzato per la deduplicazione. L’`aggregateId` identifica l’ordine e viene impiegato anche come chiave Kafka. L’`aggregateVersion` consente invece di verificare la continuità della sequenza.
+
+Il campo `correlationId` permette di collegare eventi appartenenti allo stesso flusso operativo, mentre `producerId` e `producerType` indicano il sistema che ha generato il fatto.
+
 ## 6. Scenario ORD-2001
+
+Lo scenario principale attraversa dieci versioni:
 
 ```text
 v1  ORDER_CREATED          CREATED
@@ -214,22 +266,28 @@ v4  INVENTORY_RESERVED     INVENTORY_RESERVED
 v5  ORDER_PACKED           PACKED
 v6  SHIPMENT_STARTED       IN_TRANSIT, HUB-MODENA
 v7  HUB_REACHED            IN_TRANSIT, HUB-BOLOGNA
-v8  DELIVERY_DELAYED       IN_TRANSIT, delay 35
+v8  DELIVERY_DELAYED       IN_TRANSIT, ritardo 35
 v9  OUT_FOR_DELIVERY       OUT_FOR_DELIVERY, HUB-FIRENZE
 v10 ORDER_DELIVERED        DELIVERED
 ```
 
-Lo scenario è sufficientemente ricco per dimostrare:
+Le prime versioni descrivono le operazioni commerciali e di preparazione. L’ordine viene creato, confermato e pagato. Successivamente viene riservato l’inventario e il pacco viene preparato.
 
-- transizioni;
-- versionamento;
-- dati monetari;
-- hub multipli;
-- ritardo cumulativo;
-- stato terminale;
-- snapshot intermedio e finale.
+Dalla versione 6 inizia il percorso logistico. La spedizione parte dall’hub di Modena, raggiunge Bologna, registra un ritardo di 35 minuti e arriva infine a Firenze per la consegna.
+
+Questo scenario permette di verificare contemporaneamente:
+
+- transizioni tra stati differenti;
+- incremento della versione;
+- gestione degli importi;
+- attraversamento di più hub;
+- accumulo di un ritardo;
+- raggiungimento di uno stato terminale;
+- creazione di snapshot intermedi e finali.
 
 ## 7. Flusso di elaborazione live
+
+Quando il consumer riceve un record da Kafka, non aggiorna immediatamente il database. Prima di salvare il nuovo stato viene eseguita una sequenza di controlli.
 
 ```text
 ConsumerRecord<String, String>
@@ -241,30 +299,34 @@ OrderEventDeserializer
 record.key == aggregateId ?
         |
         v
-processed_events contains eventId ?
+processed_events contiene eventId ?
         |
         v
-load previous OrderState
+caricamento OrderState precedente
         |
         v
 OrderStateProjector.apply
         |
         v
-save order_states
+salvataggio order_states
         |
         +-> snapshot se version % 5 == 0
         |
         v
-save processed_events
+salvataggio processed_events
         |
         v
 commit PostgreSQL
         |
         v
-commit Kafka offset
+commit offset Kafka
 ```
 
-Il projector rimane indipendente dall'infrastruttura:
+Il record viene prima deserializzato. Il consumer verifica quindi che la chiave Kafka corrisponda all’`aggregateId` contenuto nell’evento.
+
+La tabella `processed_events` viene interrogata per capire se l’evento sia già stato elaborato. Se l’`eventId` è già presente, il processor restituisce un risultato duplicato e non applica nuovamente il cambiamento.
+
+Se l’evento è nuovo, il repository carica lo stato precedente e il projector calcola lo stato successivo:
 
 ```java
 OrderState currentState = projector.apply(
@@ -273,13 +335,19 @@ OrderState currentState = projector.apply(
 );
 ```
 
+Il projector rimane indipendente dall’infrastruttura. Non effettua query SQL, non legge Kafka e non utilizza l’orologio del sistema. Questa caratteristica permette di riutilizzarlo sia nell’elaborazione live sia durante il replay.
+
+Le modifiche a `order_states`, `order_snapshots` e `processed_events` vengono completate nella stessa transazione PostgreSQL. Soltanto dopo il commit del database il consumer può committare l’offset Kafka.
+
 ## 8. Persistenza PostgreSQL
+
+PostgreSQL utilizza tre tabelle principali, ognuna con una responsabilità specifica.
 
 ### `orderflow.order_states`
 
-Una riga per ordine, ottimizzata per la lettura.
+La tabella `order_states` contiene una riga per ogni ordine. Rappresenta la proiezione corrente e permette alla dashboard di recuperare rapidamente lo stato senza dover rileggere l’intera cronologia.
 
-Campi principali:
+I campi principali sono:
 
 ```text
 order_id
@@ -298,9 +366,13 @@ delivered_at
 last_updated_at
 ```
 
+Le informazioni strutturate, come gli articoli e gli hub visitati, vengono conservate in formato JSONB. I campi più utilizzati nelle query restano invece colonne relazionali.
+
 ### `orderflow.processed_events`
 
-Garantisce deduplicazione e tracciamento:
+La tabella `processed_events` registra gli eventi già elaborati e garantisce l’idempotenza applicativa.
+
+I vincoli principali sono:
 
 ```text
 event_id UNIQUE
@@ -308,7 +380,15 @@ order_id + aggregate_version UNIQUE
 topic + partition + offset UNIQUE
 ```
 
+Questi vincoli permettono di riconoscere:
+
+- lo stesso evento ricevuto più volte;
+- la stessa versione applicata due volte;
+- lo stesso record Kafka elaborato nuovamente.
+
 ### `orderflow.order_snapshots`
+
+La tabella `order_snapshots` salva una copia completa dello stato a determinate versioni.
 
 ```text
 order_id
@@ -318,64 +398,106 @@ created_at
 UNIQUE(order_id, aggregate_version)
 ```
 
+Il campo `state_data` contiene l’intero `OrderState` serializzato. Il vincolo univoco impedisce la creazione di due snapshot per lo stesso ordine e per la stessa versione.
+
 ## 9. Replay storico
 
-Sono state implementate più modalità:
+OrderFlow permette di ricostruire lo stato in modi differenti, utilizzando sempre lo stesso `OrderStateProjector`.
 
 ### Replay completo
+
+Il replay completo applica tutti gli eventi disponibili:
 
 ```java
 replayService.replayAll(events);
 ```
 
+Nel caso di `ORD-2001`, vengono applicati tutti i dieci eventi e il risultato è `DELIVERED v10`.
+
 ### Replay per versione
 
+Il replay può fermarsi a una versione specifica:
+
 ```java
-replayService.replayToVersion(events, 5);
+replayService.replayToVersion(
+    events,
+    5
+);
 ```
+
+Il risultato è lo stato `PACKED v5`.
+
+Questa operazione permette di osservare l’aggregato in un momento preciso della sua evoluzione.
 
 ### Replay temporale
 
+Il replay può anche selezionare gli eventi avvenuti entro un determinato timestamp:
+
 ```java
-replayService.replayAtTime(events, targetTime);
+replayService.replayAtTime(
+    events,
+    targetTime
+);
 ```
+
+In questo caso la ricostruzione applica soltanto gli eventi con `occurredAt` precedente o uguale al momento richiesto.
 
 ### Replay della proiezione PostgreSQL
 
+È stato inoltre verificato che la proiezione possa essere eliminata e ricostruita:
+
 ```text
-legge stato originale
-elimina proiezione ORD-2001
-riapplica gli eventi
-salva la nuova proiezione
-confronta gli stati
+lettura dello stato originale
+eliminazione della proiezione ORD-2001
+applicazione dei dieci eventi
+salvataggio della nuova proiezione
+confronto tra stato originale e ricostruito
 ```
+
+Il risultato ha confermato che la proiezione PostgreSQL è un dato derivato.
 
 ### Replay diretto da Kafka
 
+Il progetto contiene anche una modalità di lettura storica da Kafka:
+
 ```text
-assign partitions
+assegnazione manuale delle partizioni
 seekToBeginning
-read until captured end offsets
-filter by orderId
-no offset commit
+lettura fino agli end offset iniziali
+filtro per orderId
+nessun commit degli offset
 ```
+
+In questo modo il replay non modifica la posizione del consumer operativo.
 
 ## 10. Snapshot
 
-Policy:
+La policy di OrderFlow crea uno snapshot ogni cinque versioni:
 
 ```text
 snapshot ogni 5 versioni
 ```
 
-Risultati:
+Per `ORD-2001` vengono quindi generati:
 
 ```text
 v5  PACKED
 v10 DELIVERED
 ```
 
-Confronto:
+Il replay completo richiede dieci applicazioni del projector:
+
+```text
+Replay completo: 10 eventi
+```
+
+Se la ricostruzione parte dallo snapshot alla versione 5, gli eventi precedenti sono già rappresentati nello stato salvato:
+
+```text
+Replay da snapshot v5: 5 eventi
+```
+
+Il confronto produce:
 
 ```text
 Replay completo:        10 eventi
@@ -384,7 +506,14 @@ Riduzione:              50%
 Stato finale:            equivalente
 ```
 
-Nel confronto degli importi viene usata equivalenza numerica:
+Durante la verifica è emersa una differenza tecnica nella rappresentazione dell’importo:
+
+```text
+55.0
+55.00
+```
+
+I valori sono numericamente equivalenti, ma `BigDecimal.equals()` considera anche la scala. Il confronto utilizza quindi:
 
 ```java
 first.totalAmount().compareTo(
@@ -392,9 +521,11 @@ first.totalAmount().compareTo(
 ) == 0
 ```
 
+Questa verifica ha confermato che replay completo e replay da snapshot producono lo stesso risultato dal punto di vista del dominio.
+
 ## 11. API HTTP e dashboard
 
-### Endpoint
+L’applicazione Java espone le proiezioni e gli snapshot attraverso diversi endpoint:
 
 ```text
 GET /api/health
@@ -404,7 +535,13 @@ GET /api/orders/{orderId}/snapshots
 GET /api/orders/{orderId}/state?version=5
 ```
 
-### File statici
+L’endpoint `/api/health` verifica lo stato dell’applicazione e la raggiungibilità di PostgreSQL.
+
+L’endpoint `/api/orders` restituisce la lista sintetica delle proiezioni, mentre `/api/orders/{orderId}` restituisce lo stato completo dell’ordine.
+
+Gli endpoint storici permettono di ottenere l’elenco degli snapshot e lo stato corrispondente a una versione disponibile.
+
+La dashboard è composta da tre file statici:
 
 ```text
 src/main/resources/static/
@@ -413,337 +550,151 @@ src/main/resources/static/
 └── js/app.js
 ```
 
-La stessa applicazione Java serve API e frontend:
+Questi file vengono inclusi nel JAR Maven e serviti direttamente da `ApiApplication`.
+
+L’applicazione è disponibile all’indirizzo:
 
 ```text
 http://localhost:8081/
 ```
 
-Vantaggi:
+La scelta di utilizzare HTML, CSS e JavaScript standard consente di evitare Node.js, framework frontend e server statici separati. Inoltre, frontend e API condividono la stessa origine HTTP, semplificando la configurazione.
 
-- nessun Node.js;
-- nessun framework frontend;
-- nessun server statico separato;
-- stessa origine per frontend e API;
-- distribuzione nel JAR.
 
-## 12. Test e verifiche
 
-### Java
 
-```powershell
-cd java-state-reconstructor
-mvn clean test
-mvn clean package
-```
 
-### Risorse statiche nel JAR
 
-```powershell
-jar tf `
-    "target\java-state-reconstructor-0.1.0-SNAPSHOT.jar" |
-    Select-String "static/"
-```
 
-### Python
+## 12. Demo
 
-```powershell
-cd python-generator
-$env:PYTHONPATH = "src"
-python -m unittest discover `
-    -s tests `
-    -p "test_*.py" `
-    -v
-```
+La demo può essere organizzata in un percorso di circa otto o dieci minuti.
 
-### PostgreSQL
+### 1. Presentare il problema
 
-```powershell
-docker exec orderflow-postgres `
-    psql -U orderflow -d orderflow `
-    -c "SELECT order_id, status, aggregate_version FROM orderflow.order_states;"
-```
+Iniziare spiegando che un modello CRUD mostra lo stato corrente, ma non conserva necessariamente il percorso che ha prodotto quello stato.
 
-### Snapshot
-
-```powershell
-docker exec orderflow-postgres `
-    psql -U orderflow -d orderflow `
-    -c "SELECT order_id, aggregate_version, state_data->>'status' FROM orderflow.order_snapshots ORDER BY aggregate_version;"
-```
-
-## 13. Riproducibilità da GitHub
-
-### Risposta breve
-
-Il professore può clonare e utilizzare il progetto **se nel repository sono presenti configurazione di esempio e istruzioni complete**. Il codice e le migrazioni realizzate sono sufficienti, ma la riproducibilità non dipende soltanto dal codice.
-
-Prerequisiti:
-
-- Git;
-- Docker Desktop con Docker Compose;
-- Java 17;
-- Maven;
-- Python 3;
-- una porta libera per API e servizi;
-- file `.env` ricavabile da un `.env.example` versionato.
-
-### Punto critico: `.env`
-
-Il file `.env` normalmente è escluso da Git. Deve quindi esistere un file:
+Nel caso dell’ordine, vedere soltanto:
 
 ```text
-.env.example
+DELIVERED
 ```
 
-senza segreti reali, contenente almeno valori di sviluppo.
+non permette di sapere quali hub siano stati attraversati, se si sia verificato un ritardo o in quale momento siano avvenuti i cambiamenti.
 
-Esempio concettuale:
+### 2. Mostrare il contratto dell’evento
 
-```dotenv
-POSTGRES_DB=orderflow
-POSTGRES_USER=orderflow
-POSTGRES_PASSWORD=change-me-local
-POSTGRES_PORT=5433
-```
-
-### Punto critico: porta PostgreSQL
-
-Nel computer di sviluppo la porta `5432` era già occupata da PostgreSQL locale. Il container è stato quindi esposto sulla porta host `5433`:
-
-```text
-Windows host 127.0.0.1:5433
-        -> container postgres:5432
-```
-
-Dentro Docker Compose, un'applicazione Java containerizzata userebbe invece:
-
-```text
-jdbc:postgresql://postgres:5432/orderflow
-```
-
-### Valutazione realistica
-
-Se mancano `.env.example`, README di avvio o uno script che prepara lo scenario `ORD-2001`, il professore può compilare il codice ma potrebbe non riprodurre la demo al primo tentativo. La checklist finale di questo documento serve proprio a eliminare questo rischio.
-
-## 14. Procedura di avvio consigliata
-
-### 14.1 Clonare
-
-```powershell
-git clone <URL_REPOSITORY>
-cd orderflow-event-sourcing
-```
-
-### 14.2 Preparare l'ambiente
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Verificare che la porta PostgreSQL scelta non sia già occupata.
-
-### 14.3 Avviare l'infrastruttura
-
-```powershell
-docker compose `
-    --env-file .env `
-    -f infra\docker-compose.yml `
-    up -d
-```
-
-### 14.4 Verificare i container
-
-```powershell
-docker compose `
-    --env-file .env `
-    -f infra\docker-compose.yml `
-    ps
-```
-
-### 14.5 Compilare Java
-
-```powershell
-cd java-state-reconstructor
-mvn clean package
-```
-
-### 14.6 Costruire il runtime classpath
-
-```powershell
-mvn dependency:build-classpath `
-    "-Dmdep.outputFile=target/runtime-classpath.txt"
-
-$runtimeClasspath = (
-    Get-Content "target/runtime-classpath.txt" -Raw
-).Trim()
-```
-
-### 14.7 Configurare la sessione locale
-
-```powershell
-$env:POSTGRES_JDBC_URL = `
-    "jdbc:postgresql://127.0.0.1:5433/orderflow"
-
-$env:POSTGRES_USER = "orderflow"
-$env:POSTGRES_PASSWORD = "<valore-da-env>"
-$env:API_HOST = "127.0.0.1"
-$env:API_PORT = "8081"
-```
-
-### 14.8 Avviare API e dashboard
-
-```powershell
-java `
-    -cp "target\classes;$runtimeClasspath" `
-    it.orderflow.reconstructor.api.ApiApplication
-```
-
-Aprire:
-
-```text
-http://localhost:8081/
-```
-
-### 14.9 Se il database è vuoto
-
-Eseguire uno dei check di integrazione forniti dal progetto per ricostruire `ORD-2001` dal file scenario, usando la classe e il package effettivamente presenti. La documentazione definitiva del repository dovrebbe indicare un solo comando canonico.
-
-Esempio già utilizzato durante lo sviluppo:
-
-```powershell
-java `
-    -cp "target\classes;$runtimeClasspath" `
-    it.orderflow.reconstructor.processing.TransactionalProcessingCheck `
-    "../samples/scenarios/successful-delivery-with-delay.json"
-```
-
-## 15. Demo per l'esame
-
-Sequenza consigliata, durata 8-10 minuti.
-
-### 1. Problema
-
-Spiegare che uno stato CRUD mostra dove si trova un ordine, ma non come ci è arrivato.
-
-### 2. Evento
-
-Aprire `order-created.json` o lo scenario completo e illustrare:
+Aprire lo scenario JSON e illustrare i campi principali:
 
 ```text
 eventId
+eventType
 aggregateId
 aggregateVersion
-eventType
 occurredAt
 payload
 ```
 
-### 3. Kafka
+Sottolineare che `aggregateVersion` descrive la posizione dell’evento nella storia dell’ordine.
 
-Spiegare:
+### 3. Spiegare Kafka
+
+Descrivere il ruolo di Kafka e la scelta della chiave:
 
 ```text
-key = orderId
-ordinamento per partizione
-offset
-consumer group
+Kafka key = orderId
 ```
 
-### 4. Projector
+La chiave permette agli eventi dello stesso ordine di raggiungere la stessa partizione. È quindi possibile mantenere l’ordinamento relativo della sequenza.
 
-Mostrare `OrderStateProjector.apply` e sottolineare che è puro e deterministico.
+Spiegare inoltre il ruolo di offset e consumer group.
 
-### 5. Test
+### 4. Mostrare il projector
+
+Aprire `OrderStateProjector.apply` e spiegare che la funzione riceve lo stato precedente e un evento.
+
+```java
+nextState = projector.apply(
+    previousState,
+    event
+);
+```
+
+Sottolineare che la funzione è pura e deterministica.
+
+### 5. Eseguire i test
 
 ```powershell
 mvn clean test
 ```
 
-### 6. PostgreSQL
+Il risultato verde dimostra che deserializzazione, transizioni, versioni, replay e snapshot sono verificati automaticamente.
 
-Mostrare stato e snapshot:
+### 6. Mostrare PostgreSQL
+
+Visualizzare la proiezione:
 
 ```text
 ORD-2001 DELIVERED v10
-snapshot v5 PACKED
+```
+
+Visualizzare quindi gli snapshot:
+
+```text
+snapshot v5  PACKED
 snapshot v10 DELIVERED
 ```
 
-### 7. Dashboard
+### 7. Aprire la dashboard
 
-Aprire l'ordine, mostrare hub, ritardo, articoli e stato corrente.
+Mostrare:
 
-### 8. Time travel
+- stato corrente;
+- importo;
+- articoli;
+- ritardo;
+- hub visitati;
+- ultimo aggiornamento.
 
-Cliccare snapshot v5:
+### 8. Mostrare il time travel
+
+Aprire lo snapshot alla versione 5:
 
 ```text
 PACKED v5
 ```
 
-Tornare allo stato corrente:
+Spiegare che in quel momento la spedizione non era ancora iniziata.
+
+Tornare quindi allo stato corrente:
 
 ```text
 DELIVERED v10
 ```
 
-### 9. Conclusione
+### 9. Concludere
+
+La conclusione può essere sintetizzata così:
 
 ```text
 Gli eventi rappresentano la storia.
 Lo stato è una proiezione ricostruibile.
-Gli snapshot ottimizzano il replay.
+Gli snapshot riducono il costo del replay.
 ```
 
-## 16. Limitazioni note
+## 13. Limitazioni note
 
-- scenario dimostrativo principale concentrato su `ORD-2001`;
-- broker singolo e replication factor 1;
-- nessuna autenticazione API;
-- CORS permissivo nel prototipo;
-- DLQ completa non implementata;
-- test distribuiti e di carico non inclusi;
-- consumer Java non incluso come servizio definitivo nel Compose;
-- nessuno Schema Registry;
-- frontend privo di framework, intenzionalmente semplice;
-- gestione dei segreti adatta allo sviluppo locale, non alla produzione.
+OrderFlow è un progetto didattico e include alcune semplificazioni consapevoli.
 
-Queste limitazioni non invalidano l'obiettivo didattico, ma devono essere dichiarate chiaramente.
+Lo scenario dimostrativo principale è concentrato su `ORD-2001`. Questa scelta permette di verificare in modo deterministico tutte le versioni, le transizioni e gli snapshot, ma non rappresenta un test di carico con molti ordini concorrenti.
 
-## 17. Sviluppi futuri
+Il cluster Kafka utilizza un singolo broker e un replication factor pari a 1. La configurazione è sufficiente per lo sviluppo locale, ma non offre l’alta disponibilità richiesta da un ambiente di produzione.
 
-- popolamento con molti ordini e stati differenti;
-- consumer e API containerizzati;
-- DLQ e retry topic;
-- Schema Registry;
-- Avro o Protobuf;
-- autenticazione e autorizzazione;
-- metriche Prometheus e dashboard Grafana;
-- tracing distribuito;
-- deployment Kubernetes o cloud;
-- più broker e replica;
-- retention e compaction consapevoli;
-- timeline completa degli eventi nella UI;
-- test di rebalance e fault injection.
+L’API HTTP non implementa autenticazione o autorizzazione. Anche la configurazione CORS è permissiva, perché la priorità del prototipo è mostrare i dati e non gestire la sicurezza applicativa.
 
-## 18. Checklist finale del repository
+Il frontend è stato realizzato volutamente senza framework. Questa scelta rende il codice più semplice da comprendere, visto che l'unico obiettivo finale era mostrare in modo più chiaro ciò che l'eventSourcing ricostruisce.
 
-Prima della consegna verificare:
+Queste limitazioni non compromettono l’obiettivo didattico, anzi, definiscono piuttosto il confine tra un prototipo dimostrativo e un sistema pronto per la produzione.
 
-- [ ] `README.md` principale con quick start;
-- [ ] `.env.example` presente e senza segreti;
-- [ ] `.env` escluso da Git;
-- [ ] `docker-compose.yml` valido;
-- [ ] migrazioni PostgreSQL incluse;
-- [ ] scenario `successful-delivery-with-delay.json` incluso;
-- [ ] `mvn clean package` verde;
-- [ ] test Python verdi;
-- [ ] `target/`, `__pycache__/` e file generati esclusi;
-- [ ] dashboard inclusa nel JAR;
-- [ ] comando canonico per popolare `ORD-2001` documentato;
-- [ ] comando canonico per avviare API e dashboard documentato;
-- [ ] porte locali documentate;
-- [ ] limitazioni dichiarate;
-- [ ] `git status` pulito;
-- [ ] clone di prova in una cartella nuova eseguito almeno una volta.
+
+
