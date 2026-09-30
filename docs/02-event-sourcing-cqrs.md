@@ -14,8 +14,7 @@
 10. [Evoluzione degli eventi](#10-evoluzione-degli-eventi)
 11. [Applicazione in OrderFlow](#11-applicazione-in-orderflow)
 12. [Vantaggi, costi e criteri di adozione](#12-vantaggi-costi-e-criteri-di-adozione)
-13. [Domande utili per l'esame](#13-domande-utili-per-lesame)
-14. [Riferimenti](#14-riferimenti)
+13. [Riferimenti](#14-riferimenti)
 
 ## 1. Obiettivo del documento
 
@@ -416,7 +415,7 @@ stato v10 -> DELIVERED
 Di consuetudine viene raccomandato l'Event Sourcing quando auditabilità e ricostruzione storica giustificano la complessità che si trova nello sviluppo del progetto, non come scelta predefinita per ogni componente.
 
 
-## 14. Riferimenti
+## 13. Riferimenti
 
 Martin Fowler, *Event Sourcing*, https://martinfowler.com/eaaDev/EventSourcing.html
 

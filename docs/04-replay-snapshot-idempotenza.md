@@ -15,8 +15,7 @@
 11. [Applicazione in OrderFlow](#11-applicazione-in-orderflow)
 12. [Metriche e benchmark](#12-metriche-e-benchmark)
 13. [Errori progettuali comuni](#13-errori-progettuali-comuni)
-14. [Domande utili per l’esame](#14-domande-utili-per-lesame)
-15. [Riferimenti](#15-riferimenti)
+14. [Riferimenti](#15-riferimenti)
 
 La ricostruzione dello stato rappresenta uno degli aspetti centrali dell’Event Sourcing. In questo modello, infatti, lo stato corrente non viene considerato come l’unica informazione importante, ma come il risultato dell’applicazione ordinata di tutti gli eventi appartenenti a un aggregato.
 
@@ -528,7 +527,7 @@ Un altro errore consiste nel creare uno snapshot con una versione diversa da que
 Il test più importante consiste proprio nel verificare che i due percorsi convergano allo stesso stato applicativo.
 
 
-## 15. Riferimenti
+## 14. Riferimenti
 
 PostgreSQL Documentation, *JSON Types*, https://www.postgresql.org/docs/current/datatype-json.html
 
