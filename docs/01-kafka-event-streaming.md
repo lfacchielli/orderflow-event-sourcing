@@ -44,8 +44,7 @@ Architettura OrderFlow
 8. [Kafka e sistemi tradizionali](#8-kafka-e-sistemi-tradizionali)
 9. [Collegamento con OrderFlow](#9-collegamento-con-orderflow)
 10. [Limiti e considerazioni progettuali](#10-limiti-e-considerazioni-progettuali)
-11. [Domande utili per l'esame](#11-domande-utili-per-lesame)
-12. [Riferimenti](#12-riferimenti)
+11. [Riferimenti](#12-riferimenti)
 
 ## 1. Obiettivo del documento
 
@@ -309,7 +308,7 @@ Kafka introduce vantaggi, ma ovviamente anche complessità:
 
 
 
-## 12. Riferimenti
+## 11. Riferimenti
 
 Apache Kafka, *Introduction*, https://kafka.apache.org/intro/
 
