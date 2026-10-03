@@ -8,9 +8,7 @@ Il progetto combina Apache Kafka, Java, Python e PostgreSQL per implementare la 
 
 ## Obiettivi del progetto
 
-L’obiettivo principale è dimostrare che lo stato corrente di un ordine non deve necessariamente essere considerato l’unica fonte di informazione.
-
-Lo stato può invece essere derivato dalla cronologia completa degli eventi:
+L’obiettivo principale è dimostrare come lo stato corrente di un ordine non deve essere necessariamente essere considerato l’unica fonte di informazione, bensì può essere derivato dalla cronologia completa degli eventi:
 
 ```text
 ORDER_CREATED
@@ -53,7 +51,7 @@ La stessa cronologia può essere utilizzata per ottenere:
 
 ## Concetti principali
 
-Il progetto affronta i seguenti argomenti:
+Il progetto, nei suoi vari capitoli, affronta i seguenti argomenti cardine, utili alla compresione generale del tema trattato:
 
 - Event Sourcing;
 - eventi immutabili e versionati;
@@ -81,7 +79,6 @@ Il progetto affronta i seguenti argomenti:
 - **Docker Compose** per l’infrastruttura locale;
 - **HTML5, CSS3 e JavaScript** per la dashboard operativa.
 
-Non sono richiesti Node.js, npm o strumenti di build frontend.
 
 ## Struttura del repository
 
@@ -92,7 +89,8 @@ orderflow-event-sourcing/
 │   ├── 02-event-sourcing-cqrs.md
 │   ├── 03-producer-consumer-topic-partizioni.md
 │   ├── 04-replay-snapshot-idempotenza.md
-│   └── 05-architettura-orderflow.md
+|   ├── 05-architettura-orderflow.md
+│   └── 06-uml-e-mappa-del-software.md
 │
 ├── infra/
 │   ├── docker-compose.yml
@@ -138,8 +136,6 @@ Per eseguire il progetto sono richiesti:
 - Java 17;
 - Maven;
 - Python 3.
-
-Node.js, npm e strumenti di build frontend non sono necessari.
 
 ## Configurazione locale
 
@@ -385,10 +381,13 @@ static/js/app.js
 
 ## Documentazione
 
-La documentazione teorica e pratica è disponibile nella cartella `docs`:
+La documentazione è disponibile nella cartella `docs`:
 
 1. `docs/01-kafka-event-streaming.md`
 2. `docs/02-event-sourcing-cqrs.md`
 3. `docs/03-producer-consumer-topic-partizioni.md`
 4. `docs/04-replay-snapshot-idempotenza.md`
 5. `docs/05-architettura-orderflow.md`
+6. `docs/06-uml-e-mappa-del-software.md`
+
+I file .md vengono strutturati sempre con un'apertura teorica generica, in grado di far comprendere chiaramente i concetti teorici. Viceversa chiudono la parte finale con l'applicazione pratica presente all'interno del progetto, relativa a quanto trattato in precedenza.
