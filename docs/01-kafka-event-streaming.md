@@ -1,32 +1,15 @@
 # Indice della raccolta
 
-Questa raccolta comprende cinque documenti complementari, ciascuno di essi creato con l'intento di spiegare al meglio i contenuti teorici impiegati nello sviluppo del progetto. Tali documenti conterranno in particolare:
+Questa raccolta comprende cinque documenti, ciascuno di essi creato con l'intento di spiegare al meglio i contenuti teorici impiegati nello sviluppo del progetto. Tali documenti conterranno in particolare:
 
 1. **01-kafka-event-streaming.md**: Kafka, log distribuito, topic, partizioni, offset e replay.
 2. **02-event-sourcing-cqrs.md**: Event Sourcing, aggregati, proiezioni, CQRS e consistenza eventuale.
 3. **03-producer-consumer-topic-partizioni.md**: architettura producer-consumer, consumer group, commit e affidabilità.
 4. **04-replay-snapshot-idempotenza.md**: replay, snapshot, colli di bottiglia, transazioni e idempotenza.
 5. **05-architettura-orderflow.md**: applicazione pratica dei concetti, architettura OrderFlow, avvio, demo e riproducibilità.
+6. **06-uml-e-mappa-del-software.md**: diagrammi UML e dipendenze tra i pacchetti.
 
 Nel corso dei documenti, il nostro progetto pratico verrà spesso chiamato con il nome OrderFlow.
-
-L'ordine di lettura consigliato per una migliore comprensione è il seguente:
-
-```text
-Kafka e streaming
-        |
-        v
-Event Sourcing e CQRS
-        |
-        v
-Producer e consumer
-        |
-        v
-Replay e snapshot
-        |
-        v
-Architettura OrderFlow
-```
 
 ---
 
@@ -48,7 +31,7 @@ Architettura OrderFlow
 
 ## 1. Obiettivo del documento
 
-Questo documento introduce i concetti fondamentali di **Apache Kafka** e dell'**event streaming**. L'obiettivo non è descrivere soltanto OrderFlow, ma fornire una base teorica in grado di far comprendere sistemi distribuiti che acquisiscono, conservano e processano flussi di eventi.
+Questo documento introduce i concetti fondamentali di **Apache Kafka** e dell'**event streaming**. L'obiettivo non è descrivere soltanto il nostro progetto OrderFlow, ma fornire una base teorica in grado di far comprendere sistemi distribuiti che acquisiscono, conservano e processano flussi di eventi.
 
 OrderFlow verrà poi utilizzato come esempio concreto, dove gli eventi logistici di un ordine vengono pubblicati da un producer Python, conservati in Kafka e consumati da un'applicazione Java in grado di ricostruire lo stato dell'ordine.
 
@@ -93,9 +76,7 @@ inizio del log                                  fine del log
 
 Fatto particolare è che la lettura non elimina il record, pertanto, consumer differenti possono leggere la stessa cronologia in momenti e con velocità differenti. Questa caratteristica rende Kafka adatto a:
 
-- pipeline dati;
 - architetture event-driven;
-- sistemi di audit;
 - sincronizzazione tra servizi;
 - ricostruzione di proiezioni;
 - elaborazioni in tempo reale e batch.
@@ -123,18 +104,18 @@ Forniamo adesso alcune definizioni chiave impiegate all'interno del'ambiente Kaf
 
 ### Topic
 
-Un **topic** è un flusso denominato di record. Producers e consumers non devono quindi necessariamente conoscersi direttamente, è sufficiente che condividono il nome del topic.
+Un **topic** è un flusso denominato di record. Producers e consumers pertanto non devono necessariamente conoscersi in modo diretto, proprio perché è sufficiente che condividono il nome del topic su cui lavorano.
 
 Esempio di progetto OrderFlow:
 
 ```text
 order-events
 ```
-è il topic che contiene gli eventi relativi agli ordini, sul quale scrive un producer e legge un consumer.
+è il topic che contiene gli eventi relativi agli ordini, sul quale scrive un producer e legge un consumer. Pertanto ogni volta che il producer deve pubblicare un nuovo evento, invoca funzioni di plublish su quel topic e termina il suo lavoro, senza dover attendere risposte da nessuno. Vicervera, il consumer non deve attendere notizie di pubblicazione, semplicemente sta in ascolto sul topic e porcessa tutti i nuovi eventi che riceve.
 
 ### Partizione
 
-Un topic, all'aumentare della sua grandezza, può essere diviso in partizioni. Ogni partizione rimane pur sempre un log ordinato indipendente.
+Un topic, all'aumentare della sua grandezza, può essere diviso in partizioni per eseguire ad esempio processi di load-balancing. Ogni partizione però, rimane pur sempre un log ordinato indipendente.
 
 ```text
 Topic: order-events
@@ -144,7 +125,7 @@ Partition 1: [e0] [e1]
 Partition 2: [e0] [e1] [e2] [e3]
 ```
 
-Le partizioni permettono di distribuire archiviazione e lavoro, rappresentando il concetto cardine di parallelismo.
+Le partizioni permettono di distribuire archiviazione e lavoro, rappresentando il concetto cardine del parallelismo.
 
 ### Offset
 
@@ -152,7 +133,7 @@ L'offset è la posizione di un record **all'interno di una partizione**.
 
 N.B. Non esiste un offset globale valido per tutto il topic.
 
-Un'identità Kafka completa è quindi:
+Un'identità Kafka completa è quindi composta da:
 
 ```text
 topic + partition + offset
@@ -198,7 +179,7 @@ Questa scelta consente al consumer di osservare gli eventi di uno stesso ordine 
 
 ## 7. Persistenza, retention e replay
 
-Kafka conserva i record in base a una politica di retention. Il record non viene eliminato semplicemente perché un consumer lo ha letto. Questa separazione permette il replay:
+Kafka conserva i record in base a una politica di retention, ovvero il record non viene eliminato semplicemente perché un consumer lo ha letto. Questa separazione permette la creazione di replay, cioè ripercorrere una lista di eventi relativi ad un oggetto per comprendere al meglio le fasi della sua vita:
 
 ```text
 Consumer live
@@ -234,7 +215,7 @@ OrderState storico o finale
 
 ## 8. Kafka e sistemi tradizionali
 
-Kafka non sostituisce automaticamente un database relazionale, proprio perché i due strumenti devono rispondere ad esigenze differenti.
+Kafka non sostituisce automaticamente un database relazionale, proprio perché i due strumenti sono nati per rispondere ad esigenze completamente differenti.
 
 ### Database relazionale
 
@@ -251,15 +232,14 @@ Kafka non sostituisce automaticamente un database relazionale, proprio perché i
 - throughput elevato;
 - replay degli eventi.
 
-In OrderFlow infatti, Kafka rappresenta la cronologia degli eventi, mentre PostgreSQL conserva proiezioni ottimizzate per la lettura della dashboard.
+In OrderFlow infatti, Kafka rappresenta e contiene esclusivamente la cronologia degli eventi, mentre PostgreSQL viene utilizzato per conservare proiezioni ottimizzate per la lettura della dashboard.
 
-```text
-Kafka                           PostgreSQL
-cronologia degli eventi         stato corrente
-append-only                     query SQL
-replay                          dashboard
-ordinamento per partizione      viste materializzate applicative
-```
+| Kafka | PostgreSQL |
+| :--- | :--- |
+| Cronologia degli eventi | Stato corrente |
+| Append-only | Query SQL |
+| Replay | Dashboard |
+| Ordinamento per partizione | Viste materializzate applicative |
 
 ## 9. Collegamento con OrderFlow
 
@@ -298,7 +278,7 @@ La posizione Kafka viene committata soltanto dopo l'elaborazione applicativa.
 
 ## 10. Limiti e considerazioni progettuali
 
-Kafka introduce vantaggi, ma ovviamente anche complessità:
+Kafka introduce vantaggi, ma ovviamente anche complessità, come ad esempio:
 
 - occorre stabilire una chiave di partizionamento corretta;
 - il numero di partizioni limita il parallelismo massimo di un consumer group;
