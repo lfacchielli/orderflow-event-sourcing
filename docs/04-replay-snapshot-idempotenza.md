@@ -246,7 +246,7 @@ CREATE TABLE orderflow.order_snapshots (
 
 La tabella non suddivide lo stato in molte colonne relazionali, ma salva la rappresentazione completa di `OrderState` nel campo `state_data`.
 
-Il tipo `JSONB` è adatto a questo scopo perché PostgreSQL verifica che il contenuto sia un documento JSON valido e lo conserva in una rappresentazione che può essere interrogata e indicizzata.[^postgres-jsonb]
+Il tipo `JSONB` è adatto a questo scopo perché PostgreSQL verifica che il contenuto sia un documento JSON valido e lo conserva in una rappresentazione che può essere interrogata e indicizzata.
 
 Il vincolo:
 
@@ -348,7 +348,7 @@ errore durante il salvataggio
 ROLLBACK
 ```
 
-PostgreSQL garantisce l’atomicità della transazione. Tutte le modifiche diventano visibili insieme oppure nessuna modifica produce effetto.[^postgres-transactions]
+PostgreSQL garantisce l’atomicità della transazione. Tutte le modifiche diventano visibili insieme oppure nessuna modifica produce effetto.
 
 La sequenza applicativa completa è:
 
