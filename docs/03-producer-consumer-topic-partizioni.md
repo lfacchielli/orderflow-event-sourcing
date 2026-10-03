@@ -23,12 +23,15 @@ Questo documento analizza l'architettura producer-consumer con attenzione a Kafk
 
 Identifichiamo con **producer** colui che crea e pubblica record, a differenza di un **consumer** che invece legge e processa record.
 
-```text
-Producer                 Broker                 Consumer
-   |                        |                       |
-   |---- produce(event) --->|                       |
-   |                        |<----- poll() ----------|
-   |                        |------ records -------->|
+```mermaid
+sequenceDiagram
+    participant P as Producer
+    participant B as Broker
+    participant C as Consumer
+
+    P->>B: produce(event)
+    C->>B: poll()
+    B-->>C: records
 ```
 
 Questo permette al producer di non dover chiamare direttamente il consumer (o viceversa), proprio perché Kafka funge da intermediario durevole.
@@ -220,7 +223,7 @@ In questo modo un record può essere ricevuto nuovamente, ma la presenza dell’
 
 ## 8. Commit manuale e transazioni applicative
 
-Kafka può gestire il commit degli offset automaticamente oppure lasciare questa responsabilità all’applicazione. Con il commit manuale, il programma decide quando un record può essere considerato completato.[^kafka-offsets]
+Kafka può gestire il commit degli offset automaticamente oppure lasciare questa responsabilità all’applicazione. Con il commit manuale, il programma decide quando un record può essere considerato completato.
 
 Nel progetto OrderFlow, il commit automatico è disabilitato perché non vogliamo avanzare l’offset prima che lo stato dell’ordine sia stato salvato correttamente. La sequenza di elaborazione è la seguente:
 
@@ -238,15 +241,10 @@ COMMIT Kafka offset
 
 La relazione tra Kafka e PostgreSQL può essere rappresentata così:
 
-```text
-Kafka record
-    |
-    v
-PostgreSQL transaction
-    |
-    | success
-    v
-Kafka offset commit
+```mermaid
+flowchart LR
+    A[Kafka record] --> B[PostgreSQL transaction]
+    B -->|success| C[Kafka offset commit]
 ```
 
 Questa sequenza garantisce che l’offset non venga committato prima della persistenza della proiezione. Se la transazione PostgreSQL fallisce, il commit Kafka non viene eseguito e il record potrà essere ricevuto nuovamente.
@@ -260,7 +258,7 @@ crash prima del COMMIT Kafka
 
 In questo caso la proiezione è già stata aggiornata, ma Kafka non ne è ancora a conoscenza. Al riavvio, il consumer rilegge lo stesso record. La tabella `processed_events` riconosce però l’`eventId` già elaborato e rende innocua la ripetizione.
 
-PostgreSQL gestisce inoltre come un’unica transazione il salvataggio dello stato, dell’eventuale snapshot e dell’evento processato. Questo significa che tutte le operazioni diventano visibili insieme oppure vengono annullate insieme.[^postgres-transactions]
+PostgreSQL gestisce inoltre come un’unica transazione il salvataggio dello stato, dell’eventuale snapshot e dell’evento processato. Questo significa che tutte le operazioni diventano visibili insieme oppure vengono annullate insieme.
 
 ## 9. Errori, retry e DLQ
 
@@ -289,23 +287,12 @@ Un errore permanente non viene normalmente risolto ripetendo lo stesso processam
 
 Continuare a effettuare retry su questi record potrebbe bloccare la partizione e impedire l’elaborazione degli eventi successivi. Una strategia comune consiste quindi nell’inviare il record problematico verso una **Dead Letter Queue**, accompagnandolo con le informazioni necessarie per analizzare la causa dell’errore.
 
-```text
-record ricevuto
-  |
-  +-> valido
-  |      |
-  |      v
-  |   process -> commit
-  |
-  +-> errore transitorio
-  |      |
-  |      v
-  |    retry con backoff
-  |
-  +-> errore permanente
-         |
-         v
-       DLQ -> analisi -> eventuale recupero
+```mermaid
+flowchart TD
+    A[record ricevuto] --> B{esito}
+    B -->|valido| C[process -> commit]
+    B -->|errore transitorio| D[retry con backoff]
+    B -->|errore permanente| E[DLQ -> analisi -> eventuale recupero]
 ```
 
 OrderFlow implementa già diversi controlli applicativi, tra cui la validazione della chiave Kafka, dell’identificatore dell’aggregato e della sequenza delle versioni. Una gestione completa tramite DLQ non è stata aggiunta al prototipo, ma rappresenta uno dei principali sviluppi futuri.
