@@ -68,7 +68,7 @@ state_v10 = fold(apply, empty_state, events_v1_v10)
 
 ## 3. Evento, comando e stato
 
-Definiamo alcuni concetti chiave del tema Event Sourcing:
+Definiamo in seguito alcuni concetti chiave del tema Event Sourcing, come comandi, eventi e stati.
 
 ### Comando
 
@@ -158,7 +158,7 @@ Il versionamento applicativo è importante anche quando il sistema di messaggist
 
 ## 5. Funzione di proiezione
 
-Il cuore di un sistema event-sourced è una funzione deterministica
+Rappresenta il cuore di un sistema event-sourced e si tratta semplicemente di una funzione deterministica in grado ricostruire sempre lo stesso stato a parità di eventi analizzati.
 
 ```text
 next_state = apply(current_state, event)
@@ -173,12 +173,11 @@ OrderState nextState = projector.apply(
 );
 ```
 
-che possiede proprietà ben precise:
+Affinché funzioni correttamente nella sua applicazione, deve avere delle proprietà ben specifiche, come:
 
 - nessun accesso diretto a Kafka;
 - nessun accesso diretto a PostgreSQL;
-- nessun effetto collaterale;
-- stesso input, stesso output;
+- stesso input --> stesso output;
 - stato precedente immutabile;
 - transizioni non valide rifiutate.
 
@@ -191,14 +190,6 @@ SHIPMENT_STARTED(version=6)
 =
 OrderState(status=IN_TRANSIT, version=6)
 ```
-
-Una funzione pura è semplice da testare e può essere riutilizzata per:
-
-- elaborazione live;
-- replay completo;
-- replay storico;
-- ricostruzione dopo cancellazione della proiezione;
-- replay da snapshot.
 
 ## 6. Replay e time travel
 
@@ -214,7 +205,7 @@ empty state
     = stato finale
 ```
 
-OrderFlow supporta tre forme concettuali:
+All'interno del nostro progetto sono state considerate tre possibilità di ricostruzione:
 
 ### Replay completo
 
@@ -243,11 +234,11 @@ replayService.replayAtTime(
 );
 ```
 
-Il **time travel** è uno dei vantaggi più rappresentativi dell'Event Sourcing, proprio perché siamo in grado di osservare tutto il percorso compiuto e non solo lo stato attuale in cui si trova il sistema.
+Il **time travel** è uno dei vantaggi più rappresentativi dell'Event Sourcing, proprio perché ci permette di osservare tutto il percorso compiuto e non solo lo stato attuale in cui si trova il sistema.
 
 ## 7. Proiezioni e consistenza eventuale
 
-Una **proiezione** è un modello di lettura derivato dagli eventi e può essere ricostruita perché non rappresenta la fonte primaria.
+Una **proiezione** è un modello di lettura derivato dagli eventi che, non essendo la fonte primaria del dato, ci permette di adattarla in base alle necessità. Ad esempio, a partire dal mio stream di eventi, posso andare a creare differenti osservazioni, come:
 
 ```text
 Event stream
@@ -259,18 +250,18 @@ Event stream
 
 In OrderFlow, `orderflow.order_states` contiene una riga per ordine ed è ottimizzata per query e dashboard.
 
-La proiezione può essere temporaneamente indietro rispetto al log eventi:
+Inoltre, la proiezione può anche essere temporaneamente indietro rispetto al log eventi:
 
 ```text
 Kafka ha ricevuto v10
 consumer ha processato fino a v9
 ```
 
-Questo è un esempio di **consistenza eventuale**. La proiezione converge allo stato corretto quando il consumer elabora gli eventi mancanti.
+Questo è proprio un esempio di **consistenza eventuale**, cioè la proiezione converge allo stato corretto solo quando il consumer elabora gli eventi mancanti.
 
 ## 8. CQRS
 
-CQRS significa **Command Query Responsibility Segregation**. Il principio consiste nel separare il modello usato per modificare il sistema da quello usato per leggerlo. Pertanto questa ideologia può essere utile in domini complessi dove iene richiesta consistenza e sicurezza del dato, ma aggiunge difficoltà applicative e non è adatta ad ogni sistema.
+CQRS, **Command Query Responsibility Segregation**, rappresente il principio di separare il modello usato per modificare il sistema da quello usato per leggerlo. Pertanto questa ideologia può essere utile in domini complessi dove viene richiesta consistenza e sicurezza del dato, ma aggiunge difficoltà applicative e non è adatta ad ogni sistema.
 
 ```text
 Write side                         Read side
@@ -343,7 +334,7 @@ Manca la versione 6, quindi il sistema non può ricostruire lo stato correttamen
 
 ### Stato terminale
 
-Dopo `DELIVERED`, `CANCELLED` o `DELIVERY_FAILED`, nuovi eventi di avanzamento possono essere rifiutati.
+Dopo `DELIVERED`, `CANCELLED` o `DELIVERY_FAILED`, nuovi eventi di avanzamento possono essere rifiutati, proprio perché sono concettualmente fuori dal contratto stabilito possibile per gli eventi analizzati.
 
 ## 10. Evoluzione degli eventi
 
